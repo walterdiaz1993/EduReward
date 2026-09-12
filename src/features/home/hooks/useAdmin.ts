@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../../../store/AuthContext';
 import { INITIAL_STUDENTS, StudentWithGrades, RewardRule } from '../../../mocks/userMock';
+import dbService from '../../../database/dbService';
 
 export type GradingSystem = 'percentage' | 'decimal' | 'letters';
 
@@ -18,6 +19,7 @@ export const useAdmin = () => {
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState<boolean>(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
   const [isConfigMode, setIsConfigMode] = useState<boolean>(false);
 
   const [gradingSystem, setGradingSystem] = useState<GradingSystem>('percentage');
@@ -29,12 +31,36 @@ export const useAdmin = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<'success' | 'reward' | 'punish' | 'error' | null>(null);
 
+  // Sync SQLite students on mount
   useEffect(() => {
-    if (user && user.studentIds) {
-      const filtered = allStudents.filter((s) => user.studentIds!.includes(s.id));
-      setMyStudents(filtered);
+    loadStudentsFromDb();
+  }, [user]);
+
+  const loadStudentsFromDb = async () => {
+    try {
+      const dbSts = await dbService.getAllStudents();
+
+      // Map SQLite rows to StudentWithGrades format
+      const mapped: StudentWithGrades[] = dbSts.map((row) => ({
+        id: row.id,
+        username: row.username,
+        fullName: row.full_name,
+        email: row.email,
+        role: 'student',
+        points: row.points,
+        grades: [],
+        average: 0,
+        periodType: row.period_type,
+        gradingSystem: row.grading_system,
+        subjectRules: [],
+      }));
+
+      setAllStudents(mapped);
+      setMyStudents(mapped);
+    } catch (e) {
+      console.error('Error loading SQLite students:', e);
     }
-  }, [user, allStudents]);
+  };
 
   const openScanner = async () => {
     if (!cameraPermission?.granted) {
@@ -54,7 +80,7 @@ export const useAdmin = () => {
   };
 
   const handleScanStudent = (studentId: string) => {
-    const student = allStudents.find((s) => s.id === studentId);
+    const student = allStudents.find((s) => s.id === studentId || s.username === studentId);
     if (student) {
       setSelectedStudent(student);
       setIsScannerOpen(false);
@@ -99,6 +125,14 @@ export const useAdmin = () => {
     setAlertType(null);
   };
 
+  const openPeriodModal = () => {
+    setIsPeriodModalOpen(true);
+  };
+
+  const closePeriodModal = () => {
+    setIsPeriodModalOpen(false);
+  };
+
   const handleActivatePremium = () => {
     updateUser({ isPremium: true });
     setAlertMessage(t('admin.premiumActive'));
@@ -129,7 +163,7 @@ export const useAdmin = () => {
     return { allowed: true, message: null, requiresPremium: false };
   };
 
-  const handleCreateStudent = () => {
+  const handleCreateStudent = async () => {
     const limitCheck = checkCreationLimit();
     if (!limitCheck.allowed) {
       setAlertMessage(limitCheck.message);
@@ -144,40 +178,58 @@ export const useAdmin = () => {
     }
 
     const usernameClean = newStudentUsername.trim().toLowerCase();
-    const newId = `usr_${usernameClean}`;
 
-    if (allStudents.some((s) => s.id === newId)) {
+    if (allStudents.some((s) => s.username === usernameClean)) {
       setAlertMessage(t('admin.gradeInvalid'));
       setAlertType('error');
       return;
     }
 
-    const newStudent: StudentWithGrades = {
-      id: newId,
-      username: usernameClean,
-      fullName: newStudentName.trim(),
-      email: `${usernameClean}@edureward.dev`,
-      role: 'student',
-      points: 0,
-      grades: [],
-      average: 0,
-      periodType: 'semester',
-      gradingSystem: 'percentage',
-      subjectRules: [],
-    };
+    try {
+      // Save directly to SQLite
+      const createdRow = await dbService.createStudent({
+        user_type: user?.role === 'tutor' ? 'child' : 'student',
+        full_name: newStudentName.trim(),
+        username: usernameClean,
+        email: `${usernameClean}@edureward.dev`,
+        parent_teacher_id: user?.id,
+        points: 0,
+        period_type: 'semester',
+        grading_system: 'percentage',
+      });
 
-    const updatedAll = [...allStudents, newStudent];
-    setAllStudents(updatedAll);
+      const newStudent: StudentWithGrades = {
+        id: createdRow.id,
+        username: createdRow.username,
+        fullName: createdRow.full_name,
+        email: createdRow.email,
+        role: 'student',
+        points: 0,
+        grades: [],
+        average: 0,
+        periodType: 'semester',
+        gradingSystem: 'percentage',
+        subjectRules: [],
+      };
 
-    if (user && user.studentIds) {
-      const updatedIds = [...user.studentIds, newId];
-      updateUser({ studentIds: updatedIds });
+      const updatedAll = [...allStudents, newStudent];
+      setAllStudents(updatedAll);
+      setMyStudents(updatedAll);
+
+      if (user && user.studentIds) {
+        const updatedIds = [...user.studentIds, createdRow.id];
+        updateUser({ studentIds: updatedIds });
+      }
+
+      closeCreateModal();
+      setAlertMessage(t('admin.profileSuccess'));
+      setAlertType('success');
+      setIsGradeModalOpen(true);
+    } catch (e) {
+      console.error('Error creating student in SQLite:', e);
+      setAlertMessage(t('common.error'));
+      setAlertType('error');
     }
-
-    closeCreateModal();
-    setAlertMessage(t('admin.profileSuccess'));
-    setAlertType('success');
-    setIsGradeModalOpen(true);
   };
 
   const handleSaveStudentConfig = (id: string, fields: Partial<StudentWithGrades>) => {
@@ -313,6 +365,7 @@ export const useAdmin = () => {
     isScannerOpen,
     isGradeModalOpen,
     isCreateModalOpen,
+    isPeriodModalOpen,
     isConfigMode,
     gradingSystem,
     setGradingSystem,
@@ -334,6 +387,8 @@ export const useAdmin = () => {
     closeGradeModal,
     openCreateModal,
     closeCreateModal,
+    openPeriodModal,
+    closePeriodModal,
     handleCreateStudent,
     handleSaveStudentConfig,
     handleAddRule,
@@ -341,6 +396,8 @@ export const useAdmin = () => {
     handleActivatePremium,
     validateAndAddGrade,
     checkCreationLimit,
+    reloadFromDb: loadStudentsFromDb,
   };
 };
+
 export default useAdmin;

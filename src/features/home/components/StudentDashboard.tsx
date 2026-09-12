@@ -134,7 +134,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
 
 const styles = StyleSheet.create({
   scrollContainer: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 115,
   },
   container: {
     flex: 1,
@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: theme.colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.01,
-    shadowRadius: 2,
-    elevation: 1,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   summaryLabel: {
     ...theme.typography.caption,
@@ -184,11 +184,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: theme.colors.black,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
+    shadowColor: '#1e3a8a',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2,
   },
   sectionTitle: {

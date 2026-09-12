@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Animated,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -79,7 +80,7 @@ export const PeriodWheel: React.FC<PeriodWheelProps> = ({ onBack }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Ionicons name="arrow-back" size={20} color={theme.colors.primary} />
         <Text style={styles.backButtonText}>{t('common.backBtn')}</Text>
@@ -211,13 +212,13 @@ export const PeriodWheel: React.FC<PeriodWheelProps> = ({ onBack }) => {
           )}
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scrollContent: {
+    paddingBottom: 115,
   },
   backButton: {
     flexDirection: 'row',
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: theme.roundness.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.card,
@@ -281,12 +282,12 @@ const styles = StyleSheet.create({
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: theme.colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   wheelTitle: {
     ...theme.typography.bodySemibold,

@@ -32,7 +32,8 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access the camera to scan student QR codes."
         }
-      ]
+      ],
+      "expo-sqlite"
     ]
   }
 }

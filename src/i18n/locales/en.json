@@ -8,7 +8,7 @@
   },
   "login": {
     "title": "Welcome Back!",
-    "subtitle": "EduReward — Learning & Rewards Management",
+    "subtitle": "EduReward — Motivating effort, rewarding achievement",
     "usernameLabel": "Username",
     "usernamePlaceholder": "Enter your username (e.g. tutor, teacher, nico)",
     "passwordLabel": "Password",
@@ -119,5 +119,46 @@
     "noRules": "No rules configured for this subject. Set up an incentive above.",
     "ruleSummaryText": "If grade {{cond}} {{val}} -> {{action}}",
     "deleteRule": "Delete"
+  },
+  "tabs": {
+    "home": "Home",
+    "rewards": "Rewards",
+    "wheel": "Wheel",
+    "profile": "Profile"
+  },
+  "profile": {
+    "title": "Profile & Settings",
+    "personalInfo": "Personal Information",
+    "accountType": "Account Type",
+    "teacherFree": "Free Teacher (1 Student)",
+    "teacherPremium": "Premium Teacher ⭐ (25 Students)",
+    "tutorAccount": "Tutor / Parent (3 Children)",
+    "studentAccount": "Student / Child",
+    "activatePremiumBtn": "Activate Premium Account ⭐",
+    "premiumActivated": "Congratulations! Your account is now Premium and you can register up to 25 students.",
+    "themeSection": "Visual Theme",
+    "themeLight": "Light Blue Mode",
+    "themeDark": "Midnight Blue Mode",
+    "languageSection": "Language / Idioma",
+    "deleteAccount": "Delete My Account",
+    "deleteAccountConfirmTitle": "Delete account?",
+    "deleteAccountConfirmBody": "This action cannot be undone. All your user data will be permanently removed.",
+    "deleteAccountCancel": "Cancel",
+    "deleteAccountConfirmBtn": "Permanently Delete",
+    "accountDeleted": "Your account has been successfully deleted."
+  },
+  "periods": {
+    "manageTitle": "Period & Assignment Management",
+    "createPeriodBtn": "Create New Period",
+    "periodName": "Period Name",
+    "periodNamePlaceholder": "E.g. 1st Bimonthly 2026",
+    "assignSubjectTitle": "Assign Subjects & Children",
+    "selectChildren": "Select Children / Students",
+    "selectSubjects": "Select Subjects",
+    "rangeTitle": "Grade Ranges & Rewards / Punishments",
+    "failRange": "Failed (0-59%): Punishment / Consequence",
+    "passRange": "Passed (60-89%): Minor Reward",
+    "greatRange": "Excellent (90-100%): Major Reward ⭐",
+    "saveConfigBtn": "Save Configuration"
   }
 }

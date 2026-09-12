@@ -8,7 +8,7 @@
   },
   "login": {
     "title": "¡Bienvenido de nuevo!",
-    "subtitle": "EduReward — Gestión del aprendizaje y recompensas",
+    "subtitle": "EduReward — Motivando el esfuerzo, premiando el logro",
     "usernameLabel": "Nombre de usuario",
     "usernamePlaceholder": "Ingresa tu usuario (ej. tutor, teacher, nico)",
     "passwordLabel": "Contraseña",
@@ -119,5 +119,46 @@
     "noRules": "No hay reglas configuradas para esta materia. Configura un incentivo arriba.",
     "ruleSummaryText": "Si nota {{cond}} {{val}} -> {{action}}",
     "deleteRule": "Eliminar"
+  },
+  "tabs": {
+    "home": "Inicio",
+    "rewards": "Premios",
+    "wheel": "Ruleta",
+    "profile": "Perfil"
+  },
+  "profile": {
+    "title": "Perfil y Configuración",
+    "personalInfo": "Información Personal",
+    "accountType": "Tipo de Cuenta",
+    "teacherFree": "Docente Gratuito (1 Alumno)",
+    "teacherPremium": "Docente Premium ⭐ (25 Alumnos)",
+    "tutorAccount": "Tutor / Padre (3 Hijos)",
+    "studentAccount": "Alumno / Hijo",
+    "activatePremiumBtn": "Activar Cuenta Premium ⭐",
+    "premiumActivated": "¡Felicidades! Tu cuenta ahora es Premium y puedes registrar hasta 25 alumnos.",
+    "themeSection": "Tema Visual",
+    "themeLight": "Modo Azul Claro",
+    "themeDark": "Modo Azul Medianoche",
+    "languageSection": "Idioma / Language",
+    "deleteAccount": "Borrar Mi Cuenta",
+    "deleteAccountConfirmTitle": "¿Eliminar cuenta?",
+    "deleteAccountConfirmBody": "Esta acción no se puede deshacer. Se borrarán todos tus datos de usuario.",
+    "deleteAccountCancel": "Cancelar",
+    "deleteAccountConfirmBtn": "Eliminar Definitivamente",
+    "accountDeleted": "Tu cuenta ha sido eliminada con éxito."
+  },
+  "periods": {
+    "manageTitle": "Gestión de Períodos y Asignaciones",
+    "createPeriodBtn": "Crear Nuevo Período Lectivo",
+    "periodName": "Nombre del Período",
+    "periodNamePlaceholder": "Ej. 1er Parcial 2026",
+    "assignSubjectTitle": "Asignar Materias e Hijos",
+    "selectChildren": "Seleccionar Hijos / Alumnos",
+    "selectSubjects": "Seleccionar Materias",
+    "rangeTitle": "Configuración de Rangos y Premios / Castigos",
+    "failRange": "Reprobado (0-59%): Castigo / Consecuencia",
+    "passRange": "Aprobado (60-89%): Premio Menor",
+    "greatRange": "Sobresaliente (90-100%): Premio Mayor ⭐",
+    "saveConfigBtn": "Guardar Configuración"
   }
 }

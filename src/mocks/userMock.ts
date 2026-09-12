@@ -42,7 +42,7 @@ export const MOCK_USERS: Record<string, MockUser & { passwordHash: string }> = {
     email: 'carlos@edureward.dev',
     role: 'tutor',
     points: 0,
-    studentIds: ['usr_nico', 'usr_sofia'],
+    studentIds: [],
     passwordHash: 'tutor123',
   },
   teacher: {
@@ -52,76 +52,22 @@ export const MOCK_USERS: Record<string, MockUser & { passwordHash: string }> = {
     email: 'marta@edureward.dev',
     role: 'teacher',
     points: 0,
-    studentIds: ['usr_nico'],
+    studentIds: [],
     isPremium: false,
     passwordHash: 'teacher123',
   },
   nico: {
     id: 'usr_nico',
     username: 'nico',
-    fullName: 'Nico Díaz (Hijo)',
+    fullName: 'Nico Díaz (Alumno)',
     email: 'nico@edureward.dev',
     role: 'student',
-    points: 950,
+    points: 0,
     passwordHash: 'nico123',
-  },
-  sofia: {
-    id: 'usr_sofia',
-    username: 'sofia',
-    fullName: 'Sofía Díaz (Hija)',
-    email: 'sofia@edureward.dev',
-    role: 'student',
-    points: 150,
-    passwordHash: 'sofia123',
   },
 };
 
-export const INITIAL_STUDENTS: StudentWithGrades[] = [
-  {
-    id: 'usr_nico',
-    username: 'nico',
-    fullName: 'Nico Díaz',
-    email: 'nico@edureward.dev',
-    role: 'student',
-    points: 950,
-    grades: [95, 92, 88, 95],
-    average: 92.5,
-    periodType: 'semester',
-    gradingSystem: 'percentage',
-    subjectRules: [
-      {
-        id: 'rule_1',
-        subject: 'Matemáticas',
-        condition: 'greater',
-        value: 90,
-        rewardType: 'points',
-        rewardValue: 50,
-      },
-    ],
-  },
-  {
-    id: 'usr_sofia',
-    username: 'sofia',
-    fullName: 'Sofía Díaz',
-    email: 'sofia@edureward.dev',
-    role: 'student',
-    points: 150,
-    grades: [65, 72, 60, 68],
-    average: 66.25,
-    periodType: 'bimonthly',
-    gradingSystem: 'letters',
-    subjectRules: [
-      {
-        id: 'rule_2',
-        subject: 'Español',
-        condition: 'less',
-        value: 70,
-        rewardType: 'allowance',
-        rewardValue: '-20% Mesada',
-      },
-    ],
-  },
-];
+export const INITIAL_STUDENTS: StudentWithGrades[] = [];
 
 export const MOCK_REWARDS: MockReward[] = [
   {

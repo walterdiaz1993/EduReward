@@ -5,6 +5,7 @@ export const theme = {
     secondary: '#0d9488',
     background: '#f8fafc',
     card: '#ffffff',
+    surface: '#ffffff',
     text: '#0f172a',
     textSecondary: '#64748b',
     border: '#e2e8f0',

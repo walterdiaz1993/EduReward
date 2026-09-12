@@ -261,7 +261,7 @@ export const RewardsManager: React.FC<RewardsManagerProps> = ({
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 115,
   },
   backButton: {
     flexDirection: 'row',
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: theme.roundness.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.card,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
     gap: 6,
   },
   subjectCardActive: {
@@ -350,10 +350,15 @@ const styles = StyleSheet.create({
   builderCard: {
     backgroundColor: theme.colors.card,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   cardTitle: {
     ...theme.typography.h2,
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: theme.roundness.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: theme.colors.background,
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
   textInput: {
     height: 48,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.1)',
     borderRadius: theme.roundness.md,
     paddingHorizontal: theme.spacing.md,
     backgroundColor: theme.colors.background,
@@ -411,9 +416,14 @@ const styles = StyleSheet.create({
   rulesContainer: {
     backgroundColor: theme.colors.card,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(30, 64, 175, 0.08)',
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
+    shadowColor: '#1e3a8a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   rulesTitle: {
     ...theme.typography.h2,

@@ -9,6 +9,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { theme } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -25,17 +26,21 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
+  const { colors } = useTheme();
   const isPrimary = variant === 'primary';
+
   const buttonStyle: ViewStyle[] = [
     styles.button,
-    isPrimary ? styles.primaryButton : styles.secondaryButton,
+    isPrimary
+      ? { backgroundColor: colors.primary }
+      : { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.primary },
     disabled || isLoading ? styles.disabledButton : {},
     containerStyle || {},
   ];
 
   const textStyle: TextStyle[] = [
     styles.text,
-    isPrimary ? styles.primaryText : styles.secondaryText,
+    { color: isPrimary ? colors.white : colors.primary },
   ];
 
   return (
@@ -50,7 +55,7 @@ export const Button: React.FC<ButtonProps> = ({
       {isLoading ? (
         <ActivityIndicator
           size="small"
-          color={isPrimary ? theme.colors.white : theme.colors.primary}
+          color={isPrimary ? colors.white : colors.primary}
         />
       ) : (
         <Text style={textStyle}>{title}</Text>
@@ -67,21 +72,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     width: '100%',
-    shadowColor: theme.colors.black,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  primaryButton: {
-    backgroundColor: theme.colors.primary,
-  },
-  secondaryButton: {
-    backgroundColor: theme.colors.transparent,
-    borderWidth: 2,
-    borderColor: theme.colors.primary,
-    elevation: 0,
-    shadowOpacity: 0,
   },
   disabledButton: {
     opacity: 0.6,
@@ -89,11 +84,6 @@ const styles = StyleSheet.create({
   text: {
     ...theme.typography.button,
   },
-  primaryText: {
-    color: theme.colors.white,
-  },
-  secondaryText: {
-    color: theme.colors.primary,
-  },
 });
+
 export default Button;

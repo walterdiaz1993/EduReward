@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { theme } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -22,20 +23,26 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
       <TextInput
         style={[
           styles.input,
-          error ? styles.inputError : null,
+          {
+            backgroundColor: colors.card,
+            borderColor: error ? colors.error : colors.border,
+            color: colors.text,
+          },
           style,
         ]}
-        placeholderTextColor={theme.colors.textSecondary}
+        placeholderTextColor={colors.textSecondary}
         accessibilityLabel={label}
         {...props}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -47,26 +54,19 @@ const styles = StyleSheet.create({
   },
   label: {
     ...theme.typography.bodySemibold,
-    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   input: {
     height: 52,
     borderWidth: 1,
-    borderColor: theme.colors.border,
     borderRadius: theme.roundness.md,
     paddingHorizontal: theme.spacing.md,
-    backgroundColor: theme.colors.card,
-    color: theme.colors.text,
     fontSize: theme.typography.body.fontSize,
-  },
-  inputError: {
-    borderColor: theme.colors.error,
   },
   errorText: {
     ...theme.typography.caption,
-    color: theme.colors.error,
     marginTop: theme.spacing.xs,
   },
 });
+
 export default Input;
