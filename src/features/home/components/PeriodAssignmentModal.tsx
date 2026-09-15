@@ -15,7 +15,7 @@ import { theme } from '../../../config/theme';
 import { useTheme } from '../../../context/ThemeContext';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
-import dbService, { StudentRow, PeriodRow, SubjectRow } from '../../../database/dbService';
+import dbService, { StudentRow, PeriodRow, SubjectRow, PeriodType } from '../../../database/dbService';
 
 interface PeriodAssignmentModalProps {
   visible: boolean;
@@ -32,7 +32,7 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
   const { colors, isDark } = useTheme();
 
   const [periodName, setPeriodName] = useState<string>('');
-  const [periodType, setPeriodType] = useState<'bimonthly' | 'semester'>('bimonthly');
+  const [periodType, setPeriodType] = useState<PeriodType>('bimonthly');
   
   const [dbStudents, setDbStudents] = useState<StudentRow[]>([]);
   const [dbSubjects, setDbSubjects] = useState<SubjectRow[]>([]);
@@ -41,9 +41,9 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
 
   // Configurable Reward/Punishment Threshold Rules
-  const [failReward, setFailReward] = useState<string>('-20% pts / Sin consola');
-  const [passReward, setPassReward] = useState<string>('+50 pts / +30m consola');
-  const [greatReward, setGreatReward] = useState<string>('+150 pts / $10 mesada');
+  const [failReward, setFailReward] = useState<string>('');
+  const [passReward, setPassReward] = useState<string>('');
+  const [greatReward, setGreatReward] = useState<string>('');
 
   const [newSubjectName, setNewSubjectName] = useState<string>('');
 
@@ -151,7 +151,7 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
         });
       }
 
-      Alert.alert('🎉 ¡Todo Listo!', 'Configuración de período, materias y reglas guardada con éxito.');
+      Alert.alert('¡Todo Listo!', 'Configuración de período, materias y reglas guardada con éxito.');
       onClose();
       if (onSuccess) onSuccess();
     } catch (e) {
@@ -287,18 +287,21 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
 
             <Input
               label={t('periods.failRange')}
+              placeholder="Ej. Sin consola por 1 semana / -20 pts"
               value={failReward}
               onChangeText={setFailReward}
             />
 
             <Input
               label={t('periods.passRange')}
+              placeholder="Ej. +50 Puntos de recompensa / +30m consola"
               value={passReward}
               onChangeText={setPassReward}
             />
 
             <Input
               label={t('periods.greatRange')}
+              placeholder="Ej. +150 Puntos / $10 Mesada"
               value={greatReward}
               onChangeText={setGreatReward}
             />

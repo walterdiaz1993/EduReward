@@ -16,7 +16,6 @@ import useAdmin, { GradingSystem } from '../hooks/useAdmin';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
 import StudentConfigForm from './StudentConfigForm';
-import PeriodAssignmentModal from './PeriodAssignmentModal';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -148,17 +147,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
                 ? t('admin.addProfileTeacherPremium')
                 : t('admin.addProfileTeacher')
               : t('admin.addProfileTutor')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={openPeriodModal}
-          style={[styles.actionBtn, { backgroundColor: colors.secondary + '20', borderColor: colors.secondary, borderWidth: 1 }]}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="calendar-outline" size={20} color={colors.secondary} />
-          <Text style={[styles.createButtonText, { color: colors.secondary }]}>
-            {t('periods.createPeriodBtn')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -499,11 +487,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
         </View>
       </Modal>
 
-      <PeriodAssignmentModal
-        visible={isPeriodModalOpen}
-        onClose={closePeriodModal}
-        onSuccess={reloadFromDb}
-      />
     </View>
   );
 };

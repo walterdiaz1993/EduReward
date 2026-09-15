@@ -37,6 +37,8 @@ async function initTables(db: SQLite.SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS subjects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      period_id TEXT,
+      grading_system TEXT DEFAULT 'percentage',
       created_by TEXT
     );
 
@@ -80,4 +82,17 @@ async function initTables(db: SQLite.SQLiteDatabase) {
       created_at TEXT NOT NULL
     );
   `);
+
+  // Migrations for existing databases created in previous app sessions
+  try {
+    await db.execAsync('ALTER TABLE subjects ADD COLUMN period_id TEXT;');
+  } catch (e) {
+    // Column already exists or table was newly created
+  }
+
+  try {
+    await db.execAsync("ALTER TABLE subjects ADD COLUMN grading_system TEXT DEFAULT 'percentage';");
+  } catch (e) {
+    // Column already exists or table was newly created
+  }
 }

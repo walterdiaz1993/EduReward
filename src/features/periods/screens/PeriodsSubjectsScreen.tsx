@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,37 +17,55 @@ import { theme } from '../../../config/theme';
 import { useTheme } from '../../../context/ThemeContext';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
-import dbService, { StudentRow, PeriodRow, SubjectRow } from '../../../database/dbService';
+import dbService, {
+  StudentRow,
+  PeriodRow,
+  SubjectRow,
+  RewardRuleRow,
+  PeriodType,
+  GradingSystem,
+} from '../../../database/dbService';
 
 interface PeriodsSubjectsScreenProps {
   onBack: () => void;
+}
+
+interface EditableRuleSlot {
+  minGradeStr: string;
+  maxGradeStr: string;
+  rewardValue: string;
+  ruleType: 'punishment' | 'minor_reward' | 'major_reward';
 }
 
 export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ onBack }) => {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'periods' | 'subjects' | 'assignments'>('periods');
-
-  // State lists from SQLite
+  // Periods & Students State
   const [periods, setPeriods] = useState<PeriodRow[]>([]);
-  const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
 
   // Period Form
   const [newPeriodName, setNewPeriodName] = useState<string>('');
-  const [newPeriodType, setNewPeriodType] = useState<'bimonthly' | 'semester'>('bimonthly');
+  const [newPeriodType, setNewPeriodType] = useState<PeriodType>('bimonthly');
 
-  // Subject Form
-  const [newSubjectName, setNewSubjectName] = useState<string>('');
-
-  // Assignment & Rules Form
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  // Level 1: Period Detail Modal
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodRow | null>(null);
+  const [periodSubjects, setPeriodSubjects] = useState<SubjectRow[]>([]);
+  const [subjectRulesMap, setSubjectRulesMap] = useState<Record<string, RewardRuleRow[]>>({});
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const [failReward, setFailReward] = useState<string>('-20% pts / Sin consola');
-  const [passReward, setPassReward] = useState<string>('+50 pts / +30m consola');
-  const [greatReward, setGreatReward] = useState<string>('+150 pts / $10 mesada');
+
+  // Subject Form within Period
+  const [newSubjectName, setNewSubjectName] = useState<string>('');
+  const [newGradingSystem, setNewGradingSystem] = useState<GradingSystem>('percentage');
+
+  // Level 2: Subject Rewards Modal
+  const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null);
+  const [ruleSlots, setRuleSlots] = useState<EditableRuleSlot[]>([
+    { minGradeStr: '0', maxGradeStr: '59', rewardValue: '', ruleType: 'punishment' },
+    { minGradeStr: '60', maxGradeStr: '89', rewardValue: '', ruleType: 'minor_reward' },
+    { minGradeStr: '90', maxGradeStr: '100', rewardValue: '', ruleType: 'major_reward' },
+  ]);
 
   useEffect(() => {
     loadAllData();
@@ -55,18 +74,11 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
   const loadAllData = async () => {
     try {
       const pList = await dbService.getAllPeriods();
-      const sList = await dbService.getAllSubjects();
       const stList = await dbService.getAllStudents();
-
       setPeriods(pList);
-      setSubjects(sList);
       setStudents(stList);
-
-      if (pList.length > 0) setSelectedPeriodId(pList[0].id);
-      if (stList.length > 0) setSelectedStudentIds([stList[0].id]);
-      if (sList.length > 0) setSelectedSubjectIds(sList.map((s) => s.id));
     } catch (e) {
-      console.error('Error loading SQLite data in PeriodsSubjectsScreen:', e);
+      console.error('Error loading periods data:', e);
     }
   };
 
@@ -79,7 +91,7 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
       const created = await dbService.createPeriod(newPeriodName.trim(), newPeriodType, 'user');
       setPeriods((prev) => [...prev, created]);
       setNewPeriodName('');
-      Alert.alert('✨ ¡Período Creado!', `El período "${created.name}" se guardó exitosamente.`);
+      Alert.alert('¡Período Creado!', `El período "${created.name}" se guardó exitosamente.`);
     } catch (e) {
       console.error('Error creating period:', e);
       Alert.alert(t('common.error'), 'No se pudo guardar el período.');
@@ -87,7 +99,7 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
   };
 
   const handleDeletePeriod = (id: string, name: string) => {
-    Alert.alert('Eliminar Período', `¿Deseas eliminar el período "${name}"?`, [
+    Alert.alert('Eliminar Período', `¿Deseas eliminar el período "${name}" y sus materias asociadas?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -95,29 +107,59 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
         onPress: async () => {
           await dbService.deletePeriod(id);
           setPeriods((prev) => prev.filter((p) => p.id !== id));
+          if (selectedPeriod?.id === id) {
+            setSelectedPeriod(null);
+          }
         },
       },
     ]);
   };
 
-  const handleCreateSubject = async () => {
-    if (!newSubjectName.trim()) {
-      Alert.alert(t('common.error'), t('login.errorEmptyFields'));
-      return;
-    }
+  // Open Level 1: Period Detail
+  const openPeriodDetail = async (period: PeriodRow) => {
+    setSelectedPeriod(period);
     try {
-      const created = await dbService.createSubject(newSubjectName.trim(), 'user');
-      setSubjects((prev) => [...prev, created]);
-      setSelectedSubjectIds((prev) => [...prev, created.id]);
-      setNewSubjectName('');
-      Alert.alert('📚 ¡Materia Creada!', `La materia "${created.name}" se guardó correctamente.`);
+      const subs = await dbService.getSubjectsForPeriod(period.id);
+      setPeriodSubjects(subs);
+
+      // Load rules count map
+      const rulesMap: Record<string, RewardRuleRow[]> = {};
+      for (const sb of subs) {
+        rulesMap[sb.id] = await dbService.getRulesForSubject(sb.id);
+      }
+      setSubjectRulesMap(rulesMap);
+
+      if (students.length > 0) {
+        setSelectedStudentIds([students[0].id]);
+      }
     } catch (e) {
-      console.error('Error creating subject:', e);
-      Alert.alert(t('common.error'), 'No se pudo guardar la materia.');
+      console.error('Error loading subjects for period:', e);
     }
   };
 
-  const handleDeleteSubject = (id: string, name: string) => {
+  const handleCreateSubjectInPeriod = async () => {
+    if (!selectedPeriod) return;
+    if (!newSubjectName.trim()) {
+      Alert.alert(t('common.error'), 'Ingresa el nombre de la materia.');
+      return;
+    }
+    try {
+      const created = await dbService.createSubject(
+        newSubjectName.trim(),
+        'user',
+        selectedPeriod.id,
+        newGradingSystem
+      );
+      setPeriodSubjects((prev) => [...prev, created]);
+      setNewSubjectName('');
+      Alert.alert('¡Materia Creada!', `Materia "${created.name}" agregada a ${selectedPeriod.name}.`);
+    } catch (e) {
+      console.error('Error creating subject in period:', e);
+      Alert.alert(t('common.error'), 'No se pudo agregar la materia.');
+    }
+  };
+
+  const handleDeleteSubjectInPeriod = (id: string, name: string) => {
     Alert.alert('Eliminar Materia', `¿Deseas eliminar la materia "${name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -125,10 +167,129 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
         style: 'destructive',
         onPress: async () => {
           await dbService.deleteSubject(id);
-          setSubjects((prev) => prev.filter((s) => s.id !== id));
+          setPeriodSubjects((prev) => prev.filter((s) => s.id !== id));
         },
       },
     ]);
+  };
+
+  // Open Level 2: Subject Rewards Modal
+  const openSubjectRewardsModal = async (subject: SubjectRow) => {
+    setEditingSubject(subject);
+    try {
+      const existingRules = await dbService.getRulesForSubject(subject.id);
+      const sys = subject.grading_system || 'percentage';
+
+      if (existingRules.length > 0) {
+        const mappedSlots: EditableRuleSlot[] = existingRules.map((r) => ({
+          minGradeStr: r.min_grade.toString(),
+          maxGradeStr: r.max_grade.toString(),
+          rewardValue: r.reward_value,
+          ruleType: r.rule_type as any,
+        }));
+        setRuleSlots(mappedSlots);
+      } else {
+        // Default initial slots based on grading system
+        if (sys === 'decimal') {
+          setRuleSlots([
+            { minGradeStr: '0', maxGradeStr: '5.9', rewardValue: '', ruleType: 'punishment' },
+            { minGradeStr: '6', maxGradeStr: '8.9', rewardValue: '', ruleType: 'minor_reward' },
+            { minGradeStr: '9', maxGradeStr: '10', rewardValue: '', ruleType: 'major_reward' },
+          ]);
+        } else if (sys === 'letters') {
+          setRuleSlots([
+            { minGradeStr: 'F', maxGradeStr: 'D', rewardValue: '', ruleType: 'punishment' },
+            { minGradeStr: 'C', maxGradeStr: 'B', rewardValue: '', ruleType: 'minor_reward' },
+            { minGradeStr: 'A', maxGradeStr: 'A', rewardValue: '', ruleType: 'major_reward' },
+          ]);
+        } else {
+          setRuleSlots([
+            { minGradeStr: '0', maxGradeStr: '59', rewardValue: '', ruleType: 'punishment' },
+            { minGradeStr: '60', maxGradeStr: '89', rewardValue: '', ruleType: 'minor_reward' },
+            { minGradeStr: '90', maxGradeStr: '100', rewardValue: '', ruleType: 'major_reward' },
+          ]);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading subject rules:', e);
+    }
+  };
+
+  const handleAddRuleSlot = () => {
+    if (ruleSlots.length >= 4) {
+      Alert.alert('Límite alcanzado', 'Puedes configurar máximo 4 premios o reglas por materia.');
+      return;
+    }
+    setRuleSlots((prev) => [
+      ...prev,
+      { minGradeStr: '0', maxGradeStr: '100', rewardValue: '', ruleType: 'minor_reward' },
+    ]);
+  };
+
+  const handleRemoveRuleSlot = (index: number) => {
+    setRuleSlots((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateRuleSlot = (index: number, field: keyof EditableRuleSlot, value: string) => {
+    setRuleSlots((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleSaveSubjectRewards = async () => {
+    if (!editingSubject) return;
+
+    try {
+      const formattedRules: Omit<RewardRuleRow, 'id'>[] = [];
+
+      for (const slot of ruleSlots) {
+        if (!slot.rewardValue.trim()) continue;
+
+        let minNum = parseFloat(slot.minGradeStr) || 0;
+        let maxNum = parseFloat(slot.maxGradeStr) || 100;
+
+        // Letter grade conversion if applicable
+        if (editingSubject.grading_system === 'letters') {
+          const letterToVal = (l: string) => {
+            const clean = l.trim().toUpperCase();
+            if (clean === 'F') return 0;
+            if (clean === 'D') return 2;
+            if (clean === 'C') return 3;
+            if (clean === 'B') return 4;
+            if (clean === 'A') return 5;
+            return 0;
+          };
+          minNum = letterToVal(slot.minGradeStr);
+          maxNum = letterToVal(slot.maxGradeStr);
+        }
+
+        const rType = slot.ruleType;
+        const rRewardType = rType === 'punishment' ? 'console' : rType === 'major_reward' ? 'allowance' : 'points';
+
+        formattedRules.push({
+          subject_id: editingSubject.id,
+          min_grade: minNum,
+          max_grade: maxNum,
+          rule_type: rType,
+          reward_type: rRewardType,
+          reward_value: slot.rewardValue.trim(),
+        });
+      }
+
+      await dbService.saveSubjectRewardRulesBatch(editingSubject.id, formattedRules);
+
+      // Refresh rules map
+      const updatedRules = await dbService.getRulesForSubject(editingSubject.id);
+      setSubjectRulesMap((prev) => ({ ...prev, [editingSubject.id]: updatedRules }));
+
+      Alert.alert('¡Premios Guardados!', `Premios y castigos guardados con éxito para ${editingSubject.name}.`);
+      setEditingSubject(null);
+    } catch (e: any) {
+      console.error('Error saving subject rewards:', e);
+      Alert.alert(t('common.error'), e?.message || 'No se pudieron guardar los premios.');
+    }
   };
 
   const toggleStudentSelection = (id: string) => {
@@ -137,65 +298,45 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
     );
   };
 
-  const toggleSubjectSelection = (id: string) => {
-    setSelectedSubjectIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleSaveAssignmentsAndRules = async () => {
-    if (!selectedPeriodId) {
-      Alert.alert(t('common.error'), 'Debes seleccionar un período.');
+  const handleSavePeriodAssignments = async () => {
+    if (!selectedPeriod) return;
+    if (periodSubjects.length === 0) {
+      Alert.alert(t('common.error'), 'Crea al menos una materia para este período.');
       return;
     }
-    if (selectedStudentIds.length === 0 || selectedSubjectIds.length === 0) {
-      Alert.alert(t('common.error'), 'Debes seleccionar al menos un alumno y una materia.');
+    if (selectedStudentIds.length === 0) {
+      Alert.alert(t('common.error'), 'Selecciona al menos un estudiante o hijo.');
       return;
     }
 
     try {
       for (const stId of selectedStudentIds) {
-        for (const sbId of selectedSubjectIds) {
-          await dbService.assignSubjectToStudentInPeriod(selectedPeriodId, stId, sbId);
+        for (const sb of periodSubjects) {
+          await dbService.assignSubjectToStudentInPeriod(selectedPeriod.id, stId, sb.id);
         }
       }
-
-      for (const sbId of selectedSubjectIds) {
-        // 0-59 Punishment
-        await dbService.saveRewardRule({
-          subject_id: sbId,
-          min_grade: 0,
-          max_grade: 59.99,
-          rule_type: 'punishment',
-          reward_type: 'console',
-          reward_value: failReward,
-        });
-
-        // 60-89 Minor reward
-        await dbService.saveRewardRule({
-          subject_id: sbId,
-          min_grade: 60,
-          max_grade: 89.99,
-          rule_type: 'minor_reward',
-          reward_type: 'points',
-          reward_value: passReward,
-        });
-
-        // 90-100 Major reward
-        await dbService.saveRewardRule({
-          subject_id: sbId,
-          min_grade: 90,
-          max_grade: 100,
-          rule_type: 'major_reward',
-          reward_type: 'allowance',
-          reward_value: greatReward,
-        });
-      }
-
-      Alert.alert('🎯 ¡Asignación Guardada!', 'Se han guardado las materias y las reglas de recompensas con éxito.');
-    } catch (e) {
+      Alert.alert('¡Período Guardado!', `Asignación de alumnos y materias guardada con éxito para ${selectedPeriod.name}.`);
+      setSelectedPeriod(null);
+    } catch (e: any) {
       console.error('Error saving assignments:', e);
-      Alert.alert(t('common.error'), 'Error guardando asignaciones.');
+      Alert.alert(t('common.error'), 'Error guardando asignación.');
+    }
+  };
+
+  const getPeriodTypeLabel = (type: PeriodType) => {
+    switch (type) {
+      case 'monthly':
+        return 'Mensual';
+      case 'bimonthly':
+        return 'Bimestral';
+      case 'quarterly':
+        return 'Trimestral';
+      case 'semester':
+        return 'Semestral (6 Meses)';
+      case 'annual':
+        return 'Anual';
+      default:
+        return type;
     }
   };
 
@@ -210,157 +351,232 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
 
         <Text style={[styles.title, { color: colors.text }]}>{t('periods.manageTitle')}</Text>
 
-        {/* Top Segmented Tab Switcher */}
-        <View style={[styles.tabBar, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-          <TouchableOpacity
-            onPress={() => setActiveTab('periods')}
-            style={[styles.tabItem, activeTab === 'periods' && { backgroundColor: colors.primary, borderRadius: theme.roundness.md }]}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="calendar-outline" size={18} color={activeTab === 'periods' ? colors.white : colors.textSecondary} />
-            <Text style={[styles.tabText, { color: activeTab === 'periods' ? colors.white : colors.textSecondary }]}>Períodos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('subjects')}
-            style={[styles.tabItem, activeTab === 'subjects' && { backgroundColor: colors.primary, borderRadius: theme.roundness.md }]}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="book-outline" size={18} color={activeTab === 'subjects' ? colors.white : colors.textSecondary} />
-            <Text style={[styles.tabText, { color: activeTab === 'subjects' ? colors.white : colors.textSecondary }]}>Materias</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('assignments')}
-            style={[styles.tabItem, activeTab === 'assignments' && { backgroundColor: colors.primary, borderRadius: theme.roundness.md }]}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="git-network-outline" size={18} color={activeTab === 'assignments' ? colors.white : colors.textSecondary} />
-            <Text style={[styles.tabText, { color: activeTab === 'assignments' ? colors.white : colors.textSecondary }]}>Asignación</Text>
-          </TouchableOpacity>
-        </View>
-
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* TAB 1: PERIODS */}
-          {activeTab === 'periods' && (
-            <View>
-              <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{t('periods.createPeriodBtn')}</Text>
-                <Input
-                  label={t('periods.periodName')}
-                  placeholder={t('periods.periodNamePlaceholder')}
-                  value={newPeriodName}
-                  onChangeText={setNewPeriodName}
-                />
+          {/* CREATE PERIOD FORM */}
+          <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{t('periods.createPeriodBtn')}</Text>
+            <Input
+              label={t('periods.periodName')}
+              placeholder={t('periods.periodNamePlaceholder')}
+              value={newPeriodName}
+              onChangeText={setNewPeriodName}
+            />
 
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('admin.periodTypeLabel')}</Text>
-                <View style={styles.toggleRow}>
-                  <TouchableOpacity
-                    onPress={() => setNewPeriodType('bimonthly')}
-                    style={[
-                      styles.toggleTab,
-                      { borderColor: colors.border, backgroundColor: colors.background },
-                      newPeriodType === 'bimonthly' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
-                    ]}
-                  >
-                    <Text style={[styles.toggleTabText, { color: newPeriodType === 'bimonthly' ? colors.primary : colors.textSecondary }]}>
-                      {t('admin.bimonthly')}
-                    </Text>
-                  </TouchableOpacity>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('admin.periodTypeLabel')}</Text>
 
-                  <TouchableOpacity
-                    onPress={() => setNewPeriodType('semester')}
-                    style={[
-                      styles.toggleTab,
-                      { borderColor: colors.border, backgroundColor: colors.background },
-                      newPeriodType === 'semester' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
-                    ]}
-                  >
-                    <Text style={[styles.toggleTabText, { color: newPeriodType === 'semester' ? colors.primary : colors.textSecondary }]}>
-                      {t('admin.semester')}
-                    </Text>
-                  </TouchableOpacity>
+            {/* 5 Period Frequency Buttons */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.freqScroll}>
+              {(['monthly', 'bimonthly', 'quarterly', 'semester', 'annual'] as PeriodType[]).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setNewPeriodType(type)}
+                  style={[
+                    styles.freqChip,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    newPeriodType === type && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                >
+                  <Text style={[styles.freqChipText, { color: newPeriodType === type ? colors.white : colors.text }]}>
+                    {getPeriodTypeLabel(type)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Button title="Guardar Período" onPress={handleCreatePeriod} containerStyle={{ marginTop: theme.spacing.md }} />
+          </View>
+
+          {/* REGISTERED PERIODS CARDS */}
+          <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>
+            Períodos Registrados ({periods.length})
+          </Text>
+          <Text style={[styles.sectionSubTitle, { color: colors.textSecondary }]}>
+            Haz clic en cualquier período para crear sus materias y configurar sus premios por rango.
+          </Text>
+
+          {periods.map((period) => (
+            <TouchableOpacity
+              key={period.id}
+              onPress={() => openPeriodDetail(period)}
+              style={[
+                styles.periodCard,
+                { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder },
+              ]}
+              activeOpacity={0.8}
+            >
+              <View style={styles.periodCardHeader}>
+                <View style={styles.periodTitleRow}>
+                  <View style={[styles.iconBadge, { backgroundColor: colors.primary + '20' }]}>
+                    <Ionicons name="calendar" size={20} color={colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={[styles.periodCardTitle, { color: colors.text }]}>{period.name}</Text>
+                    <View style={[styles.tagBadge, { backgroundColor: colors.secondary + '20' }]}>
+                      <Text style={[styles.tagBadgeText, { color: colors.secondary }]}>
+                        {getPeriodTypeLabel(period.period_type)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
 
-                <Button title="Guardar Período" onPress={handleCreatePeriod} />
+                <TouchableOpacity
+                  onPress={() => handleDeletePeriod(period.id, period.name)}
+                  style={styles.deleteIconBtn}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.error} />
+                </TouchableOpacity>
               </View>
 
-              <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>Períodos Registrados ({periods.length})</Text>
-              {periods.map((p) => (
-                <View key={p.id} style={[styles.listItemCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-                  <View style={styles.listItemText}>
-                    <Text style={[styles.itemTitle, { color: colors.text }]}>{p.name}</Text>
-                    <Text style={[styles.itemSub, { color: colors.textSecondary }]}>
-                      Tipo: {p.period_type === 'bimonthly' ? t('admin.bimonthly') : t('admin.semester')}
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={() => handleDeletePeriod(p.id, p.name)} style={styles.deleteIconBtn}>
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                  </TouchableOpacity>
+              <View style={[styles.cardActionRow, { borderTopColor: colors.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="book-outline" size={16} color={colors.primary} />
+                  <Text style={[styles.cardActionText, { color: colors.primary }]}>
+                    Entrar al Período (Crear Materias y Premios)
+                  </Text>
                 </View>
-              ))}
-            </View>
-          )}
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
-          {/* TAB 2: SUBJECTS */}
-          {activeTab === 'subjects' && (
-            <View>
-              <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Crear Nueva Materia</Text>
+      {/* LEVEL 1: PERIOD DETAIL MODAL */}
+      {selectedPeriod && (
+        <Modal visible={true} animationType="slide" transparent={true} onRequestClose={() => setSelectedPeriod(null)}>
+          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+            <View style={[styles.modalContainer, { backgroundColor: colors.card, borderColor: colors.glassBorder }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedPeriod.name}</Text>
+                  <Text style={[styles.modalSub, { color: colors.textSecondary }]}>
+                    Frecuencia: {getPeriodTypeLabel(selectedPeriod.period_type)}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedPeriod(null)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+                {/* FORM TO ADD SUBJECT IN THIS PERIOD */}
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>1. Crear Materia para este Período</Text>
                 <Input
                   label="Nombre de la Materia"
-                  placeholder="Ej. Robótica, Inglés, Química"
+                  placeholder="Ej. Matemáticas, Robótica, Ciencias"
                   value={newSubjectName}
                   onChangeText={setNewSubjectName}
                 />
-                <Button title="Agregar Materia" onPress={handleCreateSubject} />
-              </View>
 
-              <Text style={[styles.sectionHeaderTitle, { color: colors.text }]}>Materias Disponibles ({subjects.length})</Text>
-              <View style={styles.gridContainer}>
-                {subjects.map((sb) => (
-                  <View key={sb.id} style={[styles.gridCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-                    <View style={[styles.subjectIconBox, { backgroundColor: colors.secondary + '20' }]}>
-                      <Ionicons name="book" size={22} color={colors.secondary} />
-                    </View>
-                    <Text style={[styles.gridCardTitle, { color: colors.text }]}>{sb.name}</Text>
-                    <TouchableOpacity onPress={() => handleDeleteSubject(sb.id, sb.name)} style={styles.deleteIconBtn}>
-                      <Ionicons name="trash-outline" size={18} color={colors.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Sistema de Calificación de la Materia</Text>
+                <View style={styles.systemToggleRow}>
+                  <TouchableOpacity
+                    onPress={() => setNewGradingSystem('percentage')}
+                    style={[
+                      styles.systemTab,
+                      { borderColor: colors.border, backgroundColor: colors.background },
+                      newGradingSystem === 'percentage' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.systemTabText, { color: newGradingSystem === 'percentage' ? colors.primary : colors.text }]}>
+                      Base 100 (0-100%)
+                    </Text>
+                  </TouchableOpacity>
 
-          {/* TAB 3: ASSIGNMENTS & RULES */}
-          {activeTab === 'assignments' && (
-            <View>
-              <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{t('periods.assignSubjectTitle')}</Text>
+                  <TouchableOpacity
+                    onPress={() => setNewGradingSystem('decimal')}
+                    style={[
+                      styles.systemTab,
+                      { borderColor: colors.border, backgroundColor: colors.background },
+                      newGradingSystem === 'decimal' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.systemTabText, { color: newGradingSystem === 'decimal' ? colors.primary : colors.text }]}>
+                      Base 10 (0-10)
+                    </Text>
+                  </TouchableOpacity>
 
-                {/* Period Selector */}
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Seleccionar Período</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                  {periods.map((p) => (
-                    <TouchableOpacity
-                      key={p.id}
-                      onPress={() => setSelectedPeriodId(p.id)}
+                  <TouchableOpacity
+                    onPress={() => setNewGradingSystem('letters')}
+                    style={[
+                      styles.systemTab,
+                      { borderColor: colors.border, backgroundColor: colors.background },
+                      newGradingSystem === 'letters' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.systemTabText, { color: newGradingSystem === 'letters' ? colors.primary : colors.text }]}>
+                      Alfabético (A-F)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Button title="Agregar Materia" onPress={handleCreateSubjectInPeriod} containerStyle={{ marginBottom: theme.spacing.lg }} />
+
+                {/* LIST OF SUBJECT CARDS FOR THIS PERIOD */}
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: theme.spacing.xs }]}>
+                  2. Cards de Materias de este Período ({periodSubjects.length})
+                </Text>
+                <Text style={[styles.sectionSubTitle, { color: colors.textSecondary, marginBottom: theme.spacing.md }]}>
+                  Cada materia tiene su propia tarjeta. Presiona "Gestionar Premios" para asignar sus premios por rango.
+                </Text>
+
+                {periodSubjects.map((sb) => {
+                  const sysLabel =
+                    sb.grading_system === 'decimal'
+                      ? 'Base 10 (0-10)'
+                      : sb.grading_system === 'letters'
+                      ? 'Alfabético (A-F)'
+                      : 'Base 100 (0-100%)';
+                  const configuredRulesCount = (subjectRulesMap[sb.id] || []).length;
+
+                  return (
+                    <View
+                      key={sb.id}
                       style={[
-                        styles.chip,
+                        styles.subjectCard,
                         { backgroundColor: colors.background, borderColor: colors.border },
-                        selectedPeriodId === p.id && { backgroundColor: colors.primary, borderColor: colors.primary },
                       ]}
                     >
-                      <Ionicons name={selectedPeriodId === p.id ? 'checkmark-circle' : 'calendar-outline'} size={16} color={selectedPeriodId === p.id ? colors.white : colors.textSecondary} />
-                      <Text style={[styles.chipText, { color: selectedPeriodId === p.id ? colors.white : colors.text }]}>{p.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                      <View style={styles.subjectCardHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={[styles.iconBox, { backgroundColor: colors.secondary + '20' }]}>
+                            <Ionicons name="book" size={20} color={colors.secondary} />
+                          </View>
+                          <View>
+                            <Text style={[styles.subjectCardTitle, { color: colors.text }]}>{sb.name}</Text>
+                            <View style={styles.subjectBadgeRow}>
+                              <View style={[styles.miniBadge, { backgroundColor: colors.primary + '15' }]}>
+                                <Text style={[styles.miniBadgeText, { color: colors.primary }]}>{sysLabel}</Text>
+                              </View>
+                              <View style={[styles.miniBadge, { backgroundColor: colors.secondary + '15' }]}>
+                                <Text style={[styles.miniBadgeText, { color: colors.secondary }]}>
+                                  {configuredRulesCount} / 4 Premios
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        </View>
 
-                {/* Students Selector */}
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginTop: theme.spacing.md }]}>
-                  {t('periods.selectChildren')}
+                        <TouchableOpacity onPress={() => handleDeleteSubjectInPeriod(sb.id, sb.name)}>
+                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Manage Rewards Button on Subject Card */}
+                      <TouchableOpacity
+                        onPress={() => openSubjectRewardsModal(sb)}
+                        style={[styles.manageRewardsBtn, { backgroundColor: colors.secondary }]}
+                      >
+                        <Ionicons name="gift-outline" size={16} color={colors.white} />
+                        <Text style={styles.manageRewardsBtnText}>Gestionar Premios de esta Materia</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+
+                {/* ASSIGN STUDENTS TO PERIOD */}
+                <Text style={[styles.sectionTitle, { color: colors.text, marginTop: theme.spacing.lg }]}>
+                  3. Asignar Hijos / Alumnos a este Período
                 </Text>
                 <View style={styles.chipRow}>
                   {students.map((st) => {
@@ -382,63 +598,172 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
                   })}
                 </View>
 
-                {/* Subjects Selector */}
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginTop: theme.spacing.md }]}>
-                  {t('periods.selectSubjects')}
+                <Button title="Guardar Configuración del Período" onPress={handleSavePeriodAssignments} containerStyle={{ marginTop: theme.spacing.lg }} />
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* LEVEL 2: DEDICATED SUBJECT REWARDS MODAL */}
+      {editingSubject && (
+        <Modal visible={true} animationType="slide" transparent={true} onRequestClose={() => setEditingSubject(null)}>
+          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+            <View style={[styles.modalContainer, { backgroundColor: colors.card, borderColor: colors.glassBorder }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Premios: {editingSubject.name}</Text>
+                  <Text style={[styles.modalSub, { color: colors.textSecondary }]}>
+                    Sistema:{' '}
+                    {editingSubject.grading_system === 'decimal'
+                      ? 'Base 10 (0 - 10)'
+                      : editingSubject.grading_system === 'letters'
+                      ? 'Alfabético (A - F)'
+                      : 'Base 100 (0 - 100%)'}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setEditingSubject(null)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+                <Text style={[styles.sectionSubTitle, { color: colors.textSecondary, marginBottom: theme.spacing.md }]}>
+                  Define de qué rango a qué rango aplica cada premio o castigo. (Máximo 4 por materia).
                 </Text>
-                <View style={styles.chipRow}>
-                  {subjects.map((sb) => {
-                    const selected = selectedSubjectIds.includes(sb.id);
-                    return (
+
+                {ruleSlots.map((slot, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.ruleSlotCard,
+                      { backgroundColor: colors.background, borderColor: colors.border },
+                    ]}
+                  >
+                    <View style={styles.ruleSlotHeader}>
+                      <Text style={[styles.ruleSlotTitle, { color: colors.text }]}>Premio / Regla #{idx + 1}</Text>
+                      {ruleSlots.length > 1 && (
+                        <TouchableOpacity onPress={() => handleRemoveRuleSlot(idx)}>
+                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Type Selector */}
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Tipo de Regla</Text>
+                    <View style={styles.ruleTypeRow}>
                       <TouchableOpacity
-                        key={sb.id}
-                        onPress={() => toggleSubjectSelection(sb.id)}
+                        onPress={() => updateRuleSlot(idx, 'ruleType', 'punishment')}
                         style={[
-                          styles.chip,
-                          { backgroundColor: colors.background, borderColor: colors.border },
-                          selected && { backgroundColor: colors.secondary, borderColor: colors.secondary },
+                          styles.ruleTypeTab,
+                          { borderColor: colors.border, backgroundColor: colors.card },
+                          slot.ruleType === 'punishment' && { backgroundColor: colors.error + '20', borderColor: colors.error },
                         ]}
                       >
-                        <Ionicons name={selected ? 'checkmark-circle' : 'book-outline'} size={16} color={selected ? colors.white : colors.textSecondary} />
-                        <Text style={[styles.chipText, { color: selected ? colors.white : colors.text }]}>{sb.name}</Text>
+                        <Text style={[styles.ruleTypeTabText, { color: slot.ruleType === 'punishment' ? colors.error : colors.textSecondary }]}>
+                          Castigo
+                        </Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
 
-                {/* Range Rules Setup */}
-                <Text style={[styles.cardTitle, { color: colors.text, marginTop: theme.spacing.lg }]}>
-                  {t('periods.rangeTitle')}
-                </Text>
+                      <TouchableOpacity
+                        onPress={() => updateRuleSlot(idx, 'ruleType', 'minor_reward')}
+                        style={[
+                          styles.ruleTypeTab,
+                          { borderColor: colors.border, backgroundColor: colors.card },
+                          slot.ruleType === 'minor_reward' && { backgroundColor: colors.secondary + '20', borderColor: colors.secondary },
+                        ]}
+                      >
+                        <Text style={[styles.ruleTypeTabText, { color: slot.ruleType === 'minor_reward' ? colors.secondary : colors.textSecondary }]}>
+                          Premio Menor
+                        </Text>
+                      </TouchableOpacity>
 
-                <Input
-                  label={t('periods.failRange')}
-                  value={failReward}
-                  onChangeText={setFailReward}
-                />
+                      <TouchableOpacity
+                        onPress={() => updateRuleSlot(idx, 'ruleType', 'major_reward')}
+                        style={[
+                          styles.ruleTypeTab,
+                          { borderColor: colors.border, backgroundColor: colors.card },
+                          slot.ruleType === 'major_reward' && { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+                        ]}
+                      >
+                        <Text style={[styles.ruleTypeTabText, { color: slot.ruleType === 'major_reward' ? colors.primary : colors.textSecondary }]}>
+                          Premio Mayor
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
-                <Input
-                  label={t('periods.passRange')}
-                  value={passReward}
-                  onChangeText={setPassReward}
-                />
+                    {/* Min & Max Range Custom Inputs */}
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginTop: theme.spacing.xs }]}>
+                      Rango de Calificación (Mínimo a Máximo)
+                    </Text>
+                    <View style={styles.rangeInputsRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.rangeInputSub, { color: colors.textSecondary }]}>Desde (Mínimo)</Text>
+                        <TextInput
+                          style={[styles.rangeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                          placeholder={editingSubject.grading_system === 'letters' ? 'F' : '0'}
+                          placeholderTextColor={colors.textSecondary}
+                          value={slot.minGradeStr}
+                          onChangeText={(val) => updateRuleSlot(idx, 'minGradeStr', val)}
+                        />
+                      </View>
 
-                <Input
-                  label={t('periods.greatRange')}
-                  value={greatReward}
-                  onChangeText={setGreatReward}
-                />
+                      <Text style={[styles.rangeToText, { color: colors.textSecondary }]}>a</Text>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.rangeInputSub, { color: colors.textSecondary }]}>Hasta (Máximo)</Text>
+                        <TextInput
+                          style={[styles.rangeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                          placeholder={editingSubject.grading_system === 'letters' ? 'A' : '100'}
+                          placeholderTextColor={colors.textSecondary}
+                          value={slot.maxGradeStr}
+                          onChangeText={(val) => updateRuleSlot(idx, 'maxGradeStr', val)}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Reward Description Input */}
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginTop: theme.spacing.xs }]}>
+                      Premio / Consecuencia Personalizada
+                    </Text>
+                    <TextInput
+                      style={[styles.rewardDescInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                      placeholder={
+                        slot.ruleType === 'punishment'
+                          ? 'Ej. Sin consola por 1 semana / -20 pts'
+                          : slot.ruleType === 'major_reward'
+                          ? 'Ej. +150 Puntos / $10 Mesada / Salida al cine'
+                          : 'Ej. +50 Puntos de recompensa / +30m consola'
+                      }
+                      placeholderTextColor={colors.textSecondary}
+                      value={slot.rewardValue}
+                      onChangeText={(val) => updateRuleSlot(idx, 'rewardValue', val)}
+                    />
+                  </View>
+                ))}
+
+                {ruleSlots.length < 4 && (
+                  <TouchableOpacity
+                    onPress={handleAddRuleSlot}
+                    style={[styles.addSlotBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '10' }]}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.addSlotBtnText, { color: colors.primary }]}>
+                      Agregar Otro Premio ({ruleSlots.length}/4)
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 <Button
-                  title={t('periods.saveConfigBtn')}
-                  onPress={handleSaveAssignmentsAndRules}
-                  containerStyle={{ marginTop: theme.spacing.md }}
+                  title="Guardar Premios de esta Materia"
+                  onPress={handleSaveSubjectRewards}
+                  containerStyle={{ marginTop: theme.spacing.lg }}
                 />
-              </View>
+              </ScrollView>
             </View>
-          )}
-        </ScrollView>
-      </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -450,15 +775,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-  },
-  scrollContent: {
-    paddingBottom: 115,
+    paddingTop: theme.spacing.md,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    gap: 4,
+    gap: 6,
+    marginBottom: theme.spacing.sm,
   },
   backButtonText: {
     ...theme.typography.caption,
@@ -466,44 +789,21 @@ const styles = StyleSheet.create({
   },
   title: {
     ...theme.typography.h1,
-    fontSize: 24,
     marginBottom: theme.spacing.md,
   },
-  tabBar: {
-    flexDirection: 'row',
-    padding: 4,
-    borderRadius: theme.roundness.md,
-    borderWidth: 1,
-    marginBottom: theme.spacing.md,
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-  },
-  tabText: {
-    ...theme.typography.caption,
-    fontWeight: '700',
-    fontSize: 12,
+  scrollContent: {
+    paddingBottom: theme.spacing.xxl,
   },
   card: {
+    padding: theme.spacing.md,
     borderRadius: theme.roundness.lg,
-    padding: theme.spacing.lg,
     borderWidth: 1,
     marginBottom: theme.spacing.lg,
-    shadowColor: '#1e3a8a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
   },
   cardTitle: {
     ...theme.typography.h2,
-    fontSize: 16,
-    marginBottom: theme.spacing.md,
+    fontSize: 18,
+    marginBottom: theme.spacing.sm,
   },
   fieldLabel: {
     ...theme.typography.caption,
@@ -512,81 +812,272 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: theme.spacing.xs,
   },
-  toggleRow: {
+  freqScroll: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
-  toggleTab: {
-    flex: 1,
-    height: 40,
-    borderRadius: theme.roundness.sm,
+  freqChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.roundness.full,
     borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginRight: theme.spacing.xs,
   },
-  toggleTabText: {
+  freqChipText: {
     ...theme.typography.caption,
     fontWeight: '600',
   },
   sectionHeaderTitle: {
     ...theme.typography.h2,
     fontSize: 18,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 2,
   },
-  listItemCard: {
+  sectionSubTitle: {
+    ...theme.typography.caption,
+    marginBottom: theme.spacing.md,
+  },
+  periodCard: {
+    borderRadius: theme.roundness.lg,
+    borderWidth: 1,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  periodCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    borderWidth: 1,
+    alignItems: 'flex-start',
     marginBottom: theme.spacing.sm,
   },
-  listItemText: {
-    flex: 1,
+  periodTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
-  itemTitle: {
-    ...theme.typography.bodySemibold,
+  iconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  periodCardTitle: {
+    ...theme.typography.h2,
     fontSize: 16,
   },
-  itemSub: {
-    ...theme.typography.caption,
-    fontSize: 12,
+  tagBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: theme.roundness.full,
     marginTop: 2,
   },
+  tagBadgeText: {
+    ...theme.typography.caption,
+    fontSize: 10,
+    fontWeight: '700',
+  },
   deleteIconBtn: {
-    padding: theme.spacing.xs,
+    padding: 4,
   },
-  gridContainer: {
+  cardActionRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
-  },
-  gridCard: {
-    width: '47%',
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
+    alignItems: 'center',
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    marginTop: theme.spacing.xs,
+  },
+  cardActionText: {
+    ...theme.typography.caption,
+    fontWeight: '700',
+  },
+
+  /* Modal Styles */
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    borderTopLeftRadius: theme.roundness.lg,
+    borderTopRightRadius: theme.roundness.lg,
+    padding: theme.spacing.lg,
+    maxHeight: '92%',
     borderWidth: 1,
   },
-  subjectIconBox: {
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: 1,
+    marginBottom: theme.spacing.md,
+  },
+  modalTitle: {
+    ...theme.typography.h2,
+    fontSize: 18,
+  },
+  modalSub: {
+    ...theme.typography.caption,
+  },
+  modalScrollContent: {
+    paddingBottom: theme.spacing.xxl,
+  },
+  sectionTitle: {
+    ...theme.typography.bodySemibold,
+    fontSize: 15,
+    marginBottom: theme.spacing.xs,
+  },
+  systemToggleRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: theme.spacing.md,
+  },
+  systemTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.roundness.sm,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  systemTabText: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  /* Subject Card Styles */
+  subjectCard: {
+    borderRadius: theme.roundness.lg,
+    borderWidth: 1,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  subjectCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  iconBox: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gridCardTitle: {
+  subjectCardTitle: {
+    ...theme.typography.bodySemibold,
+    fontSize: 15,
+  },
+  subjectBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  miniBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: theme.roundness.full,
+  },
+  miniBadgeText: {
+    ...theme.typography.caption,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  manageRewardsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: theme.roundness.md,
+    marginTop: theme.spacing.xs,
+  },
+  manageRewardsBtnText: {
+    ...theme.typography.caption,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+
+  /* Rule Slot Card Styles */
+  ruleSlotCard: {
+    borderRadius: theme.roundness.lg,
+    borderWidth: 1,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  ruleSlotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  ruleSlotTitle: {
+    ...theme.typography.bodySemibold,
+    fontSize: 14,
+  },
+  ruleTypeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: theme.spacing.xs,
+  },
+  ruleTypeTab: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: theme.roundness.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  ruleTypeTabText: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  rangeInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: theme.spacing.xs,
+  },
+  rangeInputSub: {
+    ...theme.typography.caption,
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  rangeInput: {
+    height: 38,
+    borderWidth: 1,
+    borderRadius: theme.roundness.sm,
+    paddingHorizontal: 8,
+    fontSize: 13,
+  },
+  rangeToText: {
     ...theme.typography.caption,
     fontWeight: '700',
-    flex: 1,
-    marginHorizontal: 8,
+    marginTop: 14,
   },
-  chipScroll: {
+  rewardDescInput: {
+    height: 42,
+    borderWidth: 1,
+    borderRadius: theme.roundness.md,
+    paddingHorizontal: theme.spacing.md,
+    fontSize: 13,
+  },
+  addSlotBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: theme.roundness.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
     marginBottom: theme.spacing.md,
+  },
+  addSlotBtnText: {
+    ...theme.typography.caption,
+    fontWeight: '700',
   },
   chipRow: {
     flexDirection: 'row',
@@ -601,7 +1092,6 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.roundness.full,
     borderWidth: 1,
-    marginRight: 6,
     gap: 6,
   },
   chipText: {

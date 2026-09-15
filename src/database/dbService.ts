@@ -12,16 +12,21 @@ export interface StudentRow {
   grading_system: 'percentage' | 'decimal' | 'letters';
 }
 
+export type PeriodType = 'monthly' | 'bimonthly' | 'quarterly' | 'semester' | 'annual';
+export type GradingSystem = 'percentage' | 'decimal' | 'letters';
+
 export interface PeriodRow {
   id: string;
   name: string;
-  period_type: 'bimonthly' | 'semester';
+  period_type: PeriodType;
   created_by: string;
 }
 
 export interface SubjectRow {
   id: string;
   name: string;
+  period_id?: string;
+  grading_system?: GradingSystem;
   created_by: string;
 }
 
@@ -114,7 +119,7 @@ export const dbService = {
     return await db.getAllAsync<PeriodRow>('SELECT * FROM periods ORDER BY name ASC;');
   },
 
-  async createPeriod(name: string, periodType: 'bimonthly' | 'semester', createdBy: string): Promise<PeriodRow> {
+  async createPeriod(name: string, periodType: PeriodType, createdBy: string): Promise<PeriodRow> {
     const db = await getDatabase();
     const id = generateUniqueId('prd');
     await db.runAsync(
@@ -127,6 +132,7 @@ export const dbService = {
   async deletePeriod(id: string): Promise<void> {
     const db = await getDatabase();
     await db.runAsync('DELETE FROM periods WHERE id = ?;', [id]);
+    await db.runAsync('DELETE FROM subjects WHERE period_id = ?;', [id]);
     await db.runAsync('DELETE FROM period_assignments WHERE period_id = ?;', [id]);
   },
 
@@ -136,21 +142,51 @@ export const dbService = {
     return await db.getAllAsync<SubjectRow>('SELECT * FROM subjects ORDER BY name ASC;');
   },
 
-  async createSubject(name: string, createdBy: string): Promise<SubjectRow> {
+  async getSubjectsForPeriod(periodId: string): Promise<SubjectRow[]> {
     const db = await getDatabase();
-    const existing = await db.getFirstAsync<SubjectRow>(
-      'SELECT * FROM subjects WHERE name = ?;',
-      [name]
-    );
-    if (existing) {
-      return existing;
+    try {
+      return await db.getAllAsync<SubjectRow>(
+        'SELECT * FROM subjects WHERE period_id = ? ORDER BY name ASC;',
+        [periodId]
+      );
+    } catch (e) {
+      // Ensure migration if column was missing
+      try {
+        await db.execAsync('ALTER TABLE subjects ADD COLUMN period_id TEXT;');
+        await db.execAsync("ALTER TABLE subjects ADD COLUMN grading_system TEXT DEFAULT 'percentage';");
+      } catch (err) {}
+      return await db.getAllAsync<SubjectRow>(
+        'SELECT * FROM subjects WHERE period_id = ? ORDER BY name ASC;',
+        [periodId]
+      );
     }
+  },
+
+  async createSubject(
+    name: string,
+    createdBy: string,
+    periodId?: string,
+    gradingSystem: GradingSystem = 'percentage'
+  ): Promise<SubjectRow> {
+    const db = await getDatabase();
     const id = generateUniqueId('sbj');
-    await db.runAsync(
-      'INSERT INTO subjects (id, name, created_by) VALUES (?, ?, ?);',
-      [id, name, createdBy]
-    );
-    return { id, name, created_by: createdBy };
+    try {
+      await db.runAsync(
+        'INSERT INTO subjects (id, name, period_id, grading_system, created_by) VALUES (?, ?, ?, ?, ?);',
+        [id, name, periodId || null, gradingSystem, createdBy]
+      );
+    } catch (e) {
+      // Ensure migration if column was missing
+      try {
+        await db.execAsync('ALTER TABLE subjects ADD COLUMN period_id TEXT;');
+        await db.execAsync("ALTER TABLE subjects ADD COLUMN grading_system TEXT DEFAULT 'percentage';");
+      } catch (err) {}
+      await db.runAsync(
+        'INSERT INTO subjects (id, name, period_id, grading_system, created_by) VALUES (?, ?, ?, ?, ?);',
+        [id, name, periodId || null, gradingSystem, createdBy]
+      );
+    }
+    return { id, name, period_id: periodId, grading_system: gradingSystem, created_by: createdBy };
   },
 
   async deleteSubject(id: string): Promise<void> {
@@ -179,8 +215,36 @@ export const dbService = {
   },
 
   // Reward Rules
+  async deleteRulesForSubject(subjectId: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM reward_rules WHERE subject_id = ?;', [subjectId]);
+  },
+
+  async saveSubjectRewardRulesBatch(
+    subjectId: string,
+    rules: Omit<RewardRuleRow, 'id'>[]
+  ): Promise<void> {
+    if (rules.length > 4) {
+      throw new Error('Límite alcanzado: Máximo 4 premios por materia.');
+    }
+    const db = await getDatabase();
+    await this.deleteRulesForSubject(subjectId);
+    for (const rule of rules) {
+      const id = generateUniqueId('rule');
+      await db.runAsync(
+        `INSERT INTO reward_rules (id, subject_id, min_grade, max_grade, rule_type, reward_type, reward_value)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        [id, subjectId, rule.min_grade, rule.max_grade, rule.rule_type, rule.reward_type, rule.reward_value]
+      );
+    }
+  },
+
   async saveRewardRule(rule: Omit<RewardRuleRow, 'id'>): Promise<RewardRuleRow> {
     const db = await getDatabase();
+    const existing = await this.getRulesForSubject(rule.subject_id);
+    if (existing.length >= 4) {
+      throw new Error('Límite alcanzado: Máximo 4 premios/reglas por materia.');
+    }
     const id = generateUniqueId('rule');
     await db.runAsync(
       `INSERT INTO reward_rules (id, subject_id, min_grade, max_grade, rule_type, reward_type, reward_value)
@@ -242,7 +306,7 @@ export const dbService = {
         matchedRule.rule_type === 'punishment'
           ? 'Castigo / Consecuencia Aplicada'
           : matchedRule.rule_type === 'major_reward'
-          ? '¡Premio Mayor Obtenido! ⭐'
+          ? '¡Premio Mayor Obtenido!'
           : 'Premio Menor Obtenido';
 
       await db.runAsync(

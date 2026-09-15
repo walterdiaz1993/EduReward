@@ -35,7 +35,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherP
     if (onActivateTeacherPremium) {
       onActivateTeacherPremium();
     }
-    Alert.alert('⭐ Premium Activado', t('profile.premiumActivated'));
+    Alert.alert('¡Cuenta Premium Activada!', t('profile.premiumActivated'));
   };
 
   const toggleLanguage = () => {

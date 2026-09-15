@@ -211,13 +211,18 @@ export const HomeScreen: React.FC = () => {
                       { backgroundColor: getRoleColor(user.role) + '20' },
                     ]}
                   >
-                    <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>
-                      {user.role === 'teacher'
-                        ? user.isPremium ? 'DOCENTE ⭐' : 'DOCENTE'
-                        : user.role === 'tutor'
-                        ? 'TUTOR'
-                        : 'ALUMNO'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>
+                        {user.role === 'teacher'
+                          ? user.isPremium ? 'DOCENTE PREMIUM' : 'DOCENTE'
+                          : user.role === 'tutor'
+                          ? 'TUTOR'
+                          : 'ALUMNO'}
+                      </Text>
+                      {user.role === 'teacher' && user.isPremium && (
+                        <Ionicons name="star" size={12} color={getRoleColor(user.role)} />
+                      )}
+                    </View>
                   </View>
                 )}
               </View>
