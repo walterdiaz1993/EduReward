@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../../../store/AuthContext';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { setStudents as setReduxStudents, addStudent as addReduxStudent } from '../../../store/slices/studentsSlice';
 import { INITIAL_STUDENTS, StudentWithGrades, RewardRule } from '../../../mocks/userMock';
 import dbService from '../../../database/dbService';
 
@@ -10,7 +12,11 @@ export type GradingSystem = 'percentage' | 'decimal' | 'letters';
 export const useAdmin = () => {
   const { t } = useTranslation();
   const { user, updateUser } = useAuth();
+  const dispatch = useAppDispatch();
   
+  // Read Redux students
+  const reduxStudents = useAppSelector((state) => state.students.students);
+
   const [cameraPermission, requestPermission] = useCameraPermissions();
   const [allStudents, setAllStudents] = useState<StudentWithGrades[]>(INITIAL_STUDENTS);
   const [myStudents, setMyStudents] = useState<StudentWithGrades[]>([]);
@@ -31,7 +37,7 @@ export const useAdmin = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<'success' | 'reward' | 'punish' | 'error' | null>(null);
 
-  // Sync SQLite students on mount
+  // Sync SQLite students on mount & dispatch to Redux Store
   useEffect(() => {
     loadStudentsFromDb();
   }, [user]);
@@ -39,6 +45,7 @@ export const useAdmin = () => {
   const loadStudentsFromDb = async () => {
     try {
       const dbSts = await dbService.getAllStudents();
+      dispatch(setReduxStudents(dbSts));
 
       // Map SQLite rows to StudentWithGrades format
       const mapped: StudentWithGrades[] = dbSts.map((row) => ({
@@ -197,6 +204,9 @@ export const useAdmin = () => {
         period_type: 'semester',
         grading_system: 'percentage',
       });
+
+      // Dispatch to Redux Store
+      dispatch(addReduxStudent(createdRow));
 
       const newStudent: StudentWithGrades = {
         id: createdRow.id,
