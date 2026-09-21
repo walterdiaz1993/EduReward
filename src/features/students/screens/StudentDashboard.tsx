@@ -116,38 +116,34 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
             {studentData && studentData.grades.length > 0 ? (
               <FlatList
                 data={studentData.grades}
-                keyExtractor={(_, index) => index.toString()}
                 renderItem={renderGradeItem}
-                scrollEnabled={false}
+                keyExtractor={(_, index) => index.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.gradesList}
               />
             ) : (
-              <Text style={styles.emptyText}>{t('student.noGrades')}</Text>
+              <Text style={styles.noGradesText}>{t('student.noGrades')}</Text>
             )}
           </View>
         </View>
       }
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContainer}
     />
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    paddingBottom: 115,
-  },
   container: {
-    flex: 1,
+    paddingBottom: 110,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
-    gap: 4,
+    gap: theme.spacing.xs,
   },
   backButtonText: {
-    ...theme.typography.caption,
-    fontWeight: '700',
+    ...theme.typography.bodySemibold,
     color: theme.colors.primary,
   },
   summaryRow: {
@@ -157,146 +153,149 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.roundness.md,
-    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    borderRadius: theme.roundness.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.08)',
-    shadowColor: '#1e3a8a',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   summaryLabel: {
     ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   summaryValue: {
     ...theme.typography.h1,
-    fontSize: 24,
+    fontSize: 28,
   },
   sectionCard: {
-    backgroundColor: theme.colors.card,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.08)',
-    shadowColor: '#1e3a8a',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   sectionTitle: {
-    ...theme.typography.bodySemibold,
-    color: theme.colors.text,
+    ...theme.typography.h2,
     fontSize: 18,
     marginBottom: theme.spacing.xs,
   },
   sectionDesc: {
     ...theme.typography.caption,
-    color: theme.colors.textSecondary,
     marginBottom: theme.spacing.lg,
-    lineHeight: 18,
   },
   qrContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
   },
   qrBorder: {
-    borderWidth: 2,
-    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
+    backgroundColor: '#ffffff',
     borderRadius: theme.roundness.lg,
-    padding: theme.spacing.md,
     position: 'relative',
-    backgroundColor: theme.colors.white,
+    borderWidth: 2,
+    borderColor: theme.colors.primary + '30',
   },
   scannerCornerTL: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
+    top: -2,
+    left: -2,
+    width: 16,
+    height: 16,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
     borderColor: theme.colors.primary,
+    borderTopLeftRadius: theme.roundness.sm,
   },
   scannerCornerTR: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
     borderColor: theme.colors.primary,
+    borderTopRightRadius: theme.roundness.sm,
   },
   scannerCornerBL: {
     position: 'absolute',
-    bottom: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
+    bottom: -2,
+    left: -2,
+    width: 16,
+    height: 16,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
     borderColor: theme.colors.primary,
+    borderBottomLeftRadius: theme.roundness.sm,
   },
   scannerCornerBR: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
     borderColor: theme.colors.primary,
+    borderBottomRightRadius: theme.roundness.sm,
   },
   studentIdCode: {
     ...theme.typography.caption,
     fontWeight: '700',
-    color: theme.colors.textSecondary,
     marginTop: theme.spacing.md,
-    letterSpacing: 1.5,
+    letterSpacing: 2,
+    color: theme.colors.textSecondary,
   },
   ruleItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   ruleText: {
     ...theme.typography.caption,
-    color: theme.colors.text,
     flex: 1,
-    lineHeight: 18,
+  },
+  gradesList: {
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
   gradeCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.md,
+    borderRadius: theme.roundness.md,
+    minWidth: 90,
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   gradeIndex: {
-    ...theme.typography.body,
-    color: theme.colors.text,
+    ...theme.typography.caption,
+    fontSize: 11,
+    marginBottom: 4,
   },
   gradeValueText: {
-    ...theme.typography.bodySemibold,
-    fontSize: 18,
+    ...theme.typography.h2,
+    fontSize: 20,
   },
-  emptyText: {
+  noGradesText: {
     ...theme.typography.caption,
-    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
   },
 });
+
 export default StudentDashboard;

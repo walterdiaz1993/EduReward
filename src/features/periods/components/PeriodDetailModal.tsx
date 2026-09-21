@@ -6,7 +6,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { theme } from '../../../config/theme';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
-import { PeriodRow, SubjectRow, RewardRuleRow, StudentRow, GradingSystem } from '../../../database/dbService';
+import { PeriodRow, SubjectRow, RewardRuleRow, GradingSystem } from '../../../database/dbService';
 import { getPeriodTypeLabel, GRADING_SYSTEMS } from '../constants/periods.constants';
 import SubjectCardItem from './SubjectCardItem';
 import { createStyles } from '../styles/PeriodsSubjectsScreen.styles';
@@ -15,8 +15,6 @@ interface PeriodDetailModalProps {
   selectedPeriod: PeriodRow | null;
   periodSubjects: SubjectRow[];
   subjectRulesMap: Record<string, RewardRuleRow[]>;
-  students: StudentRow[];
-  selectedStudentIds: string[];
   newSubjectName: string;
   setNewSubjectName: (val: string) => void;
   newGradingSystem: GradingSystem;
@@ -25,16 +23,12 @@ interface PeriodDetailModalProps {
   onCreateSubject: () => void;
   onDeleteSubject: (id: string, name: string) => void;
   onOpenRewardsModal: (subject: SubjectRow) => void;
-  onToggleStudentSelection: (id: string) => void;
-  onSavePeriodAssignments: () => void;
 }
 
 export const PeriodDetailModal: React.FC<PeriodDetailModalProps> = ({
   selectedPeriod,
   periodSubjects,
   subjectRulesMap,
-  students,
-  selectedStudentIds,
   newSubjectName,
   setNewSubjectName,
   newGradingSystem,
@@ -43,8 +37,6 @@ export const PeriodDetailModal: React.FC<PeriodDetailModalProps> = ({
   onCreateSubject,
   onDeleteSubject,
   onOpenRewardsModal,
-  onToggleStudentSelection,
-  onSavePeriodAssignments,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -122,38 +114,6 @@ export const PeriodDetailModal: React.FC<PeriodDetailModalProps> = ({
                 />
               );
             })}
-
-            {/* 3. Assign Students to Period */}
-            <Text style={[styles.sectionTitle, { marginTop: theme.spacing.lg }]}>
-              {t('periods.assignChildrenTitle')}
-            </Text>
-            <View style={styles.chipRow}>
-              {students.map((st) => {
-                const selected = selectedStudentIds.includes(st.id);
-                return (
-                  <TouchableOpacity
-                    key={st.id}
-                    onPress={() => onToggleStudentSelection(st.id)}
-                    style={[styles.chip, selected && styles.chipActive]}
-                  >
-                    <Ionicons
-                      name={selected ? 'checkmark-circle' : 'person-outline'}
-                      size={16}
-                      color={selected ? colors.white : colors.textSecondary}
-                    />
-                    <Text style={[styles.chipText, selected && styles.chipTextActive]}>
-                      {st.full_name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Button
-              title={t('periods.savePeriodConfigBtn')}
-              onPress={onSavePeriodAssignments}
-              containerStyle={{ marginTop: theme.spacing.lg }}
-            />
           </ScrollView>
         </View>
       </View>

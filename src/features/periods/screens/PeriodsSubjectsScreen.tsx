@@ -20,7 +20,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
 
   const {
     periods,
-    students,
     newPeriodName,
     setNewPeriodName,
     newPeriodType,
@@ -28,7 +27,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
     selectedPeriod,
     periodSubjects,
     subjectRulesMap,
-    selectedStudentIds,
     newSubjectName,
     setNewSubjectName,
     newGradingSystem,
@@ -47,8 +45,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
     handleRemoveRuleSlot,
     updateRuleSlot,
     handleSaveSubjectRewards,
-    toggleStudentSelection,
-    handleSavePeriodAssignments,
   } = usePeriodsSubjects();
 
   return (
@@ -96,8 +92,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
         selectedPeriod={selectedPeriod}
         periodSubjects={periodSubjects}
         subjectRulesMap={subjectRulesMap}
-        students={students}
-        selectedStudentIds={selectedStudentIds}
         newSubjectName={newSubjectName}
         setNewSubjectName={setNewSubjectName}
         newGradingSystem={newGradingSystem}
@@ -106,8 +100,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
         onCreateSubject={handleCreateSubjectInPeriod}
         onDeleteSubject={handleDeleteSubjectInPeriod}
         onOpenRewardsModal={openSubjectRewardsModal}
-        onToggleStudentSelection={toggleStudentSelection}
-        onSavePeriodAssignments={handleSavePeriodAssignments}
       />
 
       {/* Level 2: Subject Rewards Modal */}

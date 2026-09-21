@@ -11,9 +11,7 @@ import {
   deleteSubject as deleteSubjectAction,
   setSelectedPeriodId,
 } from '../../../store/slices/academicSlice';
-import { setStudents } from '../../../store/slices/studentsSlice';
 import dbService, {
-  StudentRow,
   PeriodRow,
   SubjectRow,
   RewardRuleRow,
@@ -31,7 +29,6 @@ export const usePeriodsSubjects = () => {
   const periods = useAppSelector((state) => state.academic.periods);
   const periodSubjects = useAppSelector((state) => state.academic.subjects);
   const selectedPeriodId = useAppSelector((state) => state.academic.selectedPeriodId);
-  const students = useAppSelector((state) => state.students.students);
 
   // Derived selectedPeriod from Redux Store
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId) || null;
@@ -40,9 +37,8 @@ export const usePeriodsSubjects = () => {
   const [newPeriodName, setNewPeriodName] = useState<string>('');
   const [newPeriodType, setNewPeriodType] = useState<PeriodType>('bimonthly');
 
-  // Rules map & Student selections
+  // Rules map for subjects
   const [subjectRulesMap, setSubjectRulesMap] = useState<Record<string, RewardRuleRow[]>>({});
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   // Subject Form inside Period Detail
   const [newSubjectName, setNewSubjectName] = useState<string>('');
@@ -61,11 +57,8 @@ export const usePeriodsSubjects = () => {
   const loadAllData = async () => {
     try {
       const pList = await dbService.getAllPeriods();
-      const stList = await dbService.getAllStudents();
-      
       // Dispatch to Redux Store via useAppDispatch
       dispatch(setPeriods(pList));
-      dispatch(setStudents(stList));
     } catch (e) {
       console.error('Error loading periods data:', e);
     }
@@ -127,10 +120,6 @@ export const usePeriodsSubjects = () => {
         rulesMap[sb.id] = await dbService.getRulesForSubject(sb.id);
       }
       setSubjectRulesMap(rulesMap);
-
-      if (students.length > 0) {
-        setSelectedStudentIds([students[0].id]);
-      }
     } catch (e) {
       console.error('Error loading subjects for period:', e);
     }
@@ -290,44 +279,8 @@ export const usePeriodsSubjects = () => {
     }
   };
 
-  const toggleStudentSelection = (id: string) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleSavePeriodAssignments = async () => {
-    if (!selectedPeriod) return;
-    if (periodSubjects.length === 0) {
-      Alert.alert(t('common.error'), t('periods.createAtLeastOneSubject'));
-      return;
-    }
-    if (selectedStudentIds.length === 0) {
-      Alert.alert(t('common.error'), t('periods.selectAtLeastOneStudent'));
-      return;
-    }
-
-    try {
-      for (const stId of selectedStudentIds) {
-        for (const sb of periodSubjects) {
-          await dbService.assignSubjectToStudentInPeriod(selectedPeriod.id, stId, sb.id);
-        }
-      }
-      Alert.alert(
-        t('periods.periodSavedTitle'),
-        t('periods.periodSavedMsg', { name: selectedPeriod.name })
-      );
-      dispatch(setSelectedPeriodId(null));
-      dispatch(setSubjects([]));
-    } catch (e: any) {
-      console.error('Error saving assignments:', e);
-      Alert.alert(t('common.error'), t('periods.periodSavedError'));
-    }
-  };
-
   return {
     periods,
-    students,
     newPeriodName,
     setNewPeriodName,
     newPeriodType,
@@ -335,7 +288,6 @@ export const usePeriodsSubjects = () => {
     selectedPeriod,
     periodSubjects,
     subjectRulesMap,
-    selectedStudentIds,
     newSubjectName,
     setNewSubjectName,
     newGradingSystem,
@@ -354,7 +306,5 @@ export const usePeriodsSubjects = () => {
     handleRemoveRuleSlot,
     updateRuleSlot,
     handleSaveSubjectRewards,
-    toggleStudentSelection,
-    handleSavePeriodAssignments,
   };
 };

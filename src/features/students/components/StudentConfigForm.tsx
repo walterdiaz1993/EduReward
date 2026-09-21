@@ -40,7 +40,7 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('admin.editStudentTitle')}</Text>
-        <TouchableOpacity onPress={onClose}>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
           <Ionicons name="close" size={24} color={theme.colors.text} />
         </TouchableOpacity>
       </View>
@@ -49,22 +49,22 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
         label={t('admin.fullName')}
         value={name}
         onChangeText={setName}
-        autoCapitalize="words"
+        placeholder={t('admin.fullNamePlaceholder')}
       />
 
       <Text style={styles.label}>{t('admin.periodTypeLabel')}</Text>
-      <View style={styles.toggleRow}>
+      <View style={styles.optionsRow}>
         <TouchableOpacity
-          onPress={() => setPeriodType('bimonthly')}
           style={[
-            styles.toggleTab,
-            periodType === 'bimonthly' ? styles.toggleTabActive : {},
+            styles.optionBtn,
+            periodType === 'bimonthly' && styles.optionBtnActive,
           ]}
+          onPress={() => setPeriodType('bimonthly')}
         >
           <Text
             style={[
-              styles.toggleTabText,
-              periodType === 'bimonthly' ? styles.toggleTabTextActive : {},
+              styles.optionText,
+              periodType === 'bimonthly' && styles.optionTextActive,
             ]}
           >
             {t('admin.bimonthly')}
@@ -72,16 +72,16 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => setPeriodType('semester')}
           style={[
-            styles.toggleTab,
-            periodType === 'semester' ? styles.toggleTabActive : {},
+            styles.optionBtn,
+            periodType === 'semester' && styles.optionBtnActive,
           ]}
+          onPress={() => setPeriodType('semester')}
         >
           <Text
             style={[
-              styles.toggleTabText,
-              periodType === 'semester' ? styles.toggleTabTextActive : {},
+              styles.optionText,
+              periodType === 'semester' && styles.optionTextActive,
             ]}
           >
             {t('admin.semester')}
@@ -90,26 +90,57 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
       </View>
 
       <Text style={styles.label}>{t('admin.gradeSystem')}</Text>
-      <View style={styles.toggleRow}>
-        {(['percentage', 'decimal', 'letters'] as const).map((sys) => (
-          <TouchableOpacity
-            key={sys}
-            onPress={() => setGradingSystem(sys)}
+      <View style={styles.optionsColumn}>
+        <TouchableOpacity
+          style={[
+            styles.optionBtn,
+            gradingSystem === 'percentage' && styles.optionBtnActive,
+          ]}
+          onPress={() => setGradingSystem('percentage')}
+        >
+          <Text
             style={[
-              styles.toggleTab,
-              gradingSystem === sys ? styles.toggleTabActive : {},
+              styles.optionText,
+              gradingSystem === 'percentage' && styles.optionTextActive,
             ]}
           >
-            <Text
-              style={[
-                styles.toggleTabText,
-                gradingSystem === sys ? styles.toggleTabTextActive : {},
-              ]}
-            >
-              {t(`admin.${sys}`)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+            {t('admin.base100')}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionBtn,
+            gradingSystem === 'decimal' && styles.optionBtnActive,
+          ]}
+          onPress={() => setGradingSystem('decimal')}
+        >
+          <Text
+            style={[
+              styles.optionText,
+              gradingSystem === 'decimal' && styles.optionTextActive,
+            ]}
+          >
+            {t('admin.base10')}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.optionBtn,
+            gradingSystem === 'letters' && styles.optionBtnActive,
+          ]}
+          onPress={() => setGradingSystem('letters')}
+        >
+          <Text
+            style={[
+              styles.optionText,
+              gradingSystem === 'letters' && styles.optionTextActive,
+            ]}
+          >
+            {t('admin.alphabetical')}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Button
@@ -123,67 +154,63 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.roundness.lg,
-    padding: theme.spacing.lg,
-    width: '100%',
-    shadowColor: theme.colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    padding: theme.spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    paddingBottom: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
   title: {
     ...theme.typography.h2,
-    color: theme.colors.text,
     fontSize: 18,
-    flex: 1,
-    marginRight: theme.spacing.sm,
+  },
+  closeBtn: {
+    padding: 4,
   },
   label: {
-    ...theme.typography.bodySemibold,
-    color: theme.colors.text,
+    ...theme.typography.caption,
+    fontWeight: '700',
+    marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xs,
-    marginTop: theme.spacing.sm,
+    textTransform: 'uppercase',
   },
-  toggleRow: {
+  optionsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
   },
-  toggleTab: {
+  optionsColumn: {
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
+  },
+  optionBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: theme.roundness.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.roundness.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: theme.colors.background,
+    alignItems: 'center',
   },
-  toggleTabActive: {
+  optionBtnActive: {
+    backgroundColor: theme.colors.primary + '20',
     borderColor: theme.colors.primary,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
   },
-  toggleTabText: {
+  optionText: {
     ...theme.typography.caption,
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
-  toggleTabTextActive: {
+  optionTextActive: {
     color: theme.colors.primary,
+    fontWeight: '700',
   },
   saveBtn: {
     marginTop: theme.spacing.md,
   },
 });
+
 export default StudentConfigForm;
