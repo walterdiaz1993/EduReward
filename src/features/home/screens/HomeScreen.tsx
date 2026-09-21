@@ -61,43 +61,12 @@ export const HomeScreen: React.FC = () => {
       if (user.role === 'tutor' || user.role === 'teacher') {
         return (
           <RewardsManager
-            students={adminState.students}
-            onAddRule={adminState.handleAddRule}
-            onDeleteRule={adminState.handleDeleteRule}
             onBack={() => setActiveTab('home')}
           />
         );
       }
 
-      const matchStudent = adminState.allStudents.find((s) => s.username === user.username);
-      const studentRules = matchStudent ? matchStudent.subjectRules : [];
-
-      return (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.title, { color: colors.text }]}>{t('student.activeRules')}</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('rewards.subtitle')}</Text>
-
-          <View style={[styles.rulesContainer, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-            {studentRules.length > 0 ? (
-              studentRules.map((rule) => (
-                <View key={rule.id} style={[styles.ruleItem, { borderBottomColor: colors.border }]}>
-                  <Ionicons name="gift-outline" size={20} color={colors.secondary} />
-                  <Text style={[styles.ruleText, { color: colors.text }]}>
-                    {t('rewards.rulePlaceholder', {
-                      subject: rule.subject,
-                      condition: rule.condition === 'greater' ? '>' : '<',
-                      value: rule.value,
-                      reward: rule.rewardValue,
-                    })}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('rewards.noRules')}</Text>
-            )}
-          </View>
-        </ScrollView>
-      );
+      return <PeriodWheel onBack={() => setActiveTab('home')} />;
     }
 
     if (activeTab === 'wheel') {
@@ -133,7 +102,7 @@ export const HomeScreen: React.FC = () => {
               </View>
               <View style={styles.menuCardContent}>
                 <Text style={[styles.menuCardTitle, { color: colors.text }]}>Gestión de Períodos y Materias</Text>
-                <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>Crea períodos lectivos, materias y asigna reglas de recompensas y castigos por calificaciones.</Text>
+                <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>Crea períodos lectivos y asigna sus materias correspondientes.</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>

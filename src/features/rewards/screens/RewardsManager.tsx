@@ -1,65 +1,156 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  FlatList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
-import { StudentWithGrades, RewardRule } from '../../../mocks/userMock';
 import Button from '../../../components/Button';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
+import dbService, {
+  PeriodRow,
+  PeriodWheelWithOptions,
+} from '../../../database/dbService';
 
 interface RewardsManagerProps {
-  students: StudentWithGrades[];
-  onAddRule: (studentId: string, rule: Omit<RewardRule, 'id'>) => void;
-  onDeleteRule: (studentId: string, ruleId: string) => void;
   onBack: () => void;
 }
 
-export const RewardsManager: React.FC<RewardsManagerProps> = ({
-  students,
-  onAddRule,
-  onDeleteRule,
-  onBack,
-}) => {
+export const RewardsManager: React.FC<RewardsManagerProps> = ({ onBack }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
 
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(
-    students.length > 0 ? students[0].id : ''
-  );
-  const [selectedSubject, setSelectedSubject] = useState<string>('Matemáticas');
-  const [condition, setCondition] = useState<'greater' | 'less'>('greater');
-  const [gradeValue, setGradeValue] = useState<string>('90');
-  const [rewardValue, setRewardValue] = useState<string>('+50 Puntos');
-  const [rewardType, setRewardType] = useState<'points' | 'console' | 'allowance'>('points');
+  const [periods, setPeriods] = useState<PeriodRow[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [wheels, setWheels] = useState<PeriodWheelWithOptions[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const selectedStudent = students.find((s) => s.id === selectedStudentId);
+  // Range inputs state map: wheelId -> { min: string, max: string }
+  const [rangeInputs, setRangeInputs] = useState<
+    Record<string, { min: string; max: string }>
+  >({});
 
-  const handleCreateRule = () => {
-    if (!selectedStudentId || !selectedSubject || !gradeValue || !rewardValue) return;
+  // New option inputs state map: wheelId -> string
+  const [newOptionInputs, setNewOptionInputs] = useState<Record<string, string>>({});
 
-    onAddRule(selectedStudentId, {
-      subject: selectedSubject,
-      condition,
-      value: parseFloat(gradeValue) || 0,
-      rewardType,
-      rewardValue,
-    });
+  const [savingWheelId, setSavingWheelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadPeriods();
+  }, []);
+
+  useEffect(() => {
+    if (selectedPeriodId) {
+      loadWheelsForPeriod(selectedPeriodId);
+    }
+  }, [selectedPeriodId]);
+
+  const loadPeriods = async () => {
+    setLoading(true);
+    try {
+      let fetchedPeriods = await dbService.getAllPeriods();
+      if (fetchedPeriods.length === 0) {
+        // Auto-create a default period if none exists
+        const defaultP = await dbService.createPeriod('Primer Semestre', 'semester', 'admin');
+        fetchedPeriods = [defaultP];
+      }
+      setPeriods(fetchedPeriods);
+      if (fetchedPeriods.length > 0) {
+        setSelectedPeriodId(fetchedPeriods[0].id);
+      }
+    } catch (e) {
+      console.error('Error loading periods for rewards manager:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const subjectsList = [
-    { key: 'matematicas', label: t('admin.matematicas') },
-    { key: 'espanol', label: t('admin.espanol') },
-    { key: 'ciencias', label: t('admin.ciencias') },
-    { key: 'historia', label: t('admin.historia') },
-  ];
+  const loadWheelsForPeriod = async (periodId: string) => {
+    try {
+      const fetchedWheels = await dbService.getPeriodWheels(periodId);
+      setWheels(fetchedWheels);
+
+      // Populate local range inputs
+      const initialRanges: Record<string, { min: string; max: string }> = {};
+      const initialNewOpts: Record<string, string> = {};
+      fetchedWheels.forEach((w) => {
+        initialRanges[w.id] = {
+          min: w.min_grade.toString(),
+          max: w.max_grade.toString(),
+        };
+        initialNewOpts[w.id] = '';
+      });
+      setRangeInputs(initialRanges);
+      setNewOptionInputs(initialNewOpts);
+    } catch (e) {
+      console.error('Error loading wheels for period:', e);
+    }
+  };
+
+  const handleSaveRanges = async (wheelId: string) => {
+    const inputs = rangeInputs[wheelId];
+    if (!inputs) return;
+
+    const minNum = parseFloat(inputs.min);
+    const maxNum = parseFloat(inputs.max);
+
+    if (isNaN(minNum) || isNaN(maxNum) || minNum < 0 || maxNum < minNum) {
+      Alert.alert(
+        t('rewards.invalidRangeTitle'),
+        t('rewards.invalidRangeMsg')
+      );
+      return;
+    }
+
+    setSavingWheelId(wheelId);
+    try {
+      await dbService.updatePeriodWheelRange(wheelId, minNum, maxNum);
+      if (selectedPeriodId) {
+        await loadWheelsForPeriod(selectedPeriodId);
+      }
+      Alert.alert(t('common.success') || 'Éxito', t('rewards.rangeUpdated'));
+    } catch (e: any) {
+      Alert.alert(t('common.error') || 'Error', e?.message || 'No se pudo guardar el rango.');
+    } finally {
+      setSavingWheelId(null);
+    }
+  };
+
+  const handleAddOption = async (wheelId: string) => {
+    const text = (newOptionInputs[wheelId] || '').trim();
+    if (!text) {
+      Alert.alert(t('rewards.textRequiredTitle'), t('rewards.textRequiredMsg'));
+      return;
+    }
+
+    try {
+      await dbService.addWheelOption(wheelId, text);
+      setNewOptionInputs((prev) => ({ ...prev, [wheelId]: '' }));
+      if (selectedPeriodId) {
+        await loadWheelsForPeriod(selectedPeriodId);
+      }
+    } catch (e: any) {
+      Alert.alert(t('common.error') || 'Error', e?.message || 'No se pudo agregar la opción.');
+    }
+  };
+
+  const handleDeleteOption = async (optionId: string) => {
+    try {
+      await dbService.deleteWheelOption(optionId);
+      if (selectedPeriodId) {
+        await loadWheelsForPeriod(selectedPeriodId);
+      }
+    } catch (e: any) {
+      Alert.alert(t('common.error') || 'Error', e?.message || 'No se pudo eliminar la opción.');
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -68,203 +159,177 @@ export const RewardsManager: React.FC<RewardsManagerProps> = ({
         <Text style={[styles.backButtonText, { color: colors.primary }]}>{t('common.backBtn')}</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.title, { color: colors.text }]}>{t('rewards.title')}</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('rewards.subtitle')}</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{t('rewards.managerTitle')}</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        {t('rewards.managerSubtitle')}
+      </Text>
 
-      {/* Select Student Selector */}
+      {/* Period Selector Card */}
       <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('admin.selectStudent')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.studentSelector}>
-          {students.map((st) => (
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('rewards.selectPeriod')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.periodSelector}>
+          {periods.map((p) => (
             <TouchableOpacity
-              key={st.id}
-              onPress={() => setSelectedStudentId(st.id)}
+              key={p.id}
+              onPress={() => setSelectedPeriodId(p.id)}
               style={[
-                styles.studentChip,
+                styles.periodChip,
                 { borderColor: colors.border, backgroundColor: colors.background },
-                selectedStudentId === st.id && { backgroundColor: colors.primary, borderColor: colors.primary },
+                selectedPeriodId === p.id && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
             >
               <Text
                 style={[
-                  styles.studentChipText,
-                  { color: selectedStudentId === st.id ? colors.white : colors.text },
+                  styles.periodChipText,
+                  { color: selectedPeriodId === p.id ? colors.white : colors.text },
                 ]}
               >
-                {st.fullName}
+                {p.name}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* Rule Creator Card */}
-      <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('rewards.addRuleBtn')}</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 30 }} />
+      ) : (
+        wheels.map((wheel) => {
+          const wheelColor = wheel.color || colors.primary;
+          const rangeInput = rangeInputs[wheel.id] || { min: '', max: '' };
 
-        {/* Subject selection */}
-        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('rewards.subjectSelector')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {subjectsList.map((sb) => (
-            <TouchableOpacity
-              key={sb.key}
-              onPress={() => setSelectedSubject(sb.label)}
+          return (
+            <View
+              key={wheel.id}
               style={[
-                styles.chip,
-                { borderColor: colors.border, backgroundColor: colors.background },
-                selectedSubject === sb.label && { backgroundColor: colors.secondary, borderColor: colors.secondary },
+                styles.card,
+                { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder },
               ]}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: selectedSubject === sb.label ? colors.white : colors.text },
-                ]}
-              >
-                {sb.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Condition Selector */}
-        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('rewards.ruleLabel')}</Text>
-        <View style={styles.conditionRow}>
-          <TouchableOpacity
-            onPress={() => setCondition('greater')}
-            style={[
-              styles.conditionChip,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              condition === 'greater' && { backgroundColor: colors.primary, borderColor: colors.primary },
-            ]}
-          >
-            <Text style={[styles.conditionChipText, { color: condition === 'greater' ? colors.white : colors.text }]}>
-              {t('admin.ruleConditionGreater')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setCondition('less')}
-            style={[
-              styles.conditionChip,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              condition === 'less' && { backgroundColor: colors.primary, borderColor: colors.primary },
-            ]}
-          >
-            <Text style={[styles.conditionChipText, { color: condition === 'less' ? colors.white : colors.text }]}>
-              {t('admin.ruleConditionLess')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Target Grade Value */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('admin.gradePlaceholder')}</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-            placeholder="Ej. 90"
-            placeholderTextColor={colors.textSecondary}
-            value={gradeValue}
-            onChangeText={setGradeValue}
-            keyboardType="numeric"
-          />
-        </View>
-
-        {/* Reward Type Selector */}
-        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('home.menuRewards')}</Text>
-        <View style={styles.rewardTypeRow}>
-          <TouchableOpacity
-            onPress={() => setRewardType('points')}
-            style={[
-              styles.typeChip,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              rewardType === 'points' && { backgroundColor: colors.secondary, borderColor: colors.secondary },
-            ]}
-          >
-            <Text style={[styles.typeChipText, { color: rewardType === 'points' ? colors.white : colors.text }]}>
-              {t('rewards.pointsOption')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setRewardType('console')}
-            style={[
-              styles.typeChip,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              rewardType === 'console' && { backgroundColor: colors.secondary, borderColor: colors.secondary },
-            ]}
-          >
-            <Text style={[styles.typeChipText, { color: rewardType === 'console' ? colors.white : colors.text }]}>
-              {t('rewards.consoleOption')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setRewardType('allowance')}
-            style={[
-              styles.typeChip,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              rewardType === 'allowance' && { backgroundColor: colors.secondary, borderColor: colors.secondary },
-            ]}
-          >
-            <Text style={[styles.typeChipText, { color: rewardType === 'allowance' ? colors.white : colors.text }]}>
-              {t('rewards.allowanceOption')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Reward Consequence Text Input */}
-        <View style={styles.inputGroup}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Acción / Consecuencia</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-            placeholder="Ej. +50 Puntos / +1h Consola / -$5 Mesada"
-            placeholderTextColor={colors.textSecondary}
-            value={rewardValue}
-            onChangeText={setRewardValue}
-          />
-        </View>
-
-        <Button
-          title={t('rewards.addRuleBtn')}
-          onPress={handleCreateRule}
-          containerStyle={{ marginTop: theme.spacing.md }}
-        />
-      </View>
-
-      {/* Active Rules List */}
-      <View style={[styles.card, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('rewards.rulesList')}</Text>
-
-        {selectedStudent && selectedStudent.subjectRules && selectedStudent.subjectRules.length > 0 ? (
-          selectedStudent.subjectRules.map((rule) => (
-            <View key={rule.id} style={[styles.ruleItem, { borderBottomColor: colors.border }]}>
-              <View style={styles.ruleInfo}>
-                <Ionicons name="ribbon-outline" size={20} color={colors.secondary} />
+              {/* Wheel Header */}
+              <View style={styles.wheelHeader}>
+                <View style={[styles.iconBox, { backgroundColor: wheelColor + '20' }]}>
+                  <Ionicons name={(wheel.icon as any) || 'aperture'} size={24} color={wheelColor} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.ruleSubjectText, { color: colors.text }]}>{rule.subject}</Text>
-                  <Text style={[styles.ruleDescText, { color: colors.textSecondary }]}>
-                    {t('rewards.ruleSummaryText', {
-                      cond: rule.condition === 'greater' ? '>' : '<',
-                      val: rule.value,
-                      action: rule.rewardValue,
-                    })}
+                  <Text style={[styles.wheelTitle, { color: colors.text }]}>{wheel.title}</Text>
+                  <Text style={[styles.wheelSubtitle, { color: colors.textSecondary }]}>
+                    {t('rewards.currentRange', { min: wheel.min_grade, max: wheel.max_grade })}
                   </Text>
                 </View>
               </View>
 
-              <TouchableOpacity
-                onPress={() => onDeleteRule(selectedStudent.id, rule.id)}
-                style={styles.deleteBtn}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.error} />
-              </TouchableOpacity>
+              {/* Editable Range Section */}
+              <View style={[styles.rangeBox, { backgroundColor: colors.background + '80', borderColor: colors.border }]}>
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('rewards.editRangeTitle')}</Text>
+                <View style={styles.rangeInputsRow}>
+                  <View style={styles.rangeField}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{t('rewards.minLabel')}</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { backgroundColor: colors.card, borderColor: colors.border, color: colors.text },
+                      ]}
+                      value={rangeInput.min}
+                      onChangeText={(txt) =>
+                        setRangeInputs((prev) => ({
+                          ...prev,
+                          [wheel.id]: { ...prev[wheel.id], min: txt },
+                        }))
+                      }
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textSecondary}
+                    />
+                  </View>
+
+                  <Text style={[styles.rangeSeparator, { color: colors.textSecondary }]}>-</Text>
+
+                  <View style={styles.rangeField}>
+                    <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{t('rewards.maxLabel')}</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { backgroundColor: colors.card, borderColor: colors.border, color: colors.text },
+                      ]}
+                      value={rangeInput.max}
+                      onChangeText={(txt) =>
+                        setRangeInputs((prev) => ({
+                          ...prev,
+                          [wheel.id]: { ...prev[wheel.id], max: txt },
+                        }))
+                      }
+                      keyboardType="numeric"
+                      placeholder="10"
+                      placeholderTextColor={colors.textSecondary}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => handleSaveRanges(wheel.id)}
+                    disabled={savingWheelId === wheel.id}
+                    style={[styles.saveRangeBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={styles.saveRangeBtnText}>{t('admin.saveBtn') || 'Guardar'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Wheel Options / Prizes List */}
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginTop: theme.spacing.md }]}>
+                {t('rewards.wheelOptionsTitle', { count: wheel.options.length })}
+              </Text>
+
+              {wheel.options.length > 0 ? (
+                wheel.options.map((opt) => (
+                  <View
+                    key={opt.id}
+                    style={[styles.optionItem, { borderBottomColor: colors.border }]}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <Ionicons name="gift-outline" size={16} color={wheelColor} />
+                      <Text style={[styles.optionText, { color: colors.text }]}>{opt.option_text}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteOption(opt.id)}
+                      style={styles.deleteOptBtn}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  {t('rewards.noOptions')}
+                </Text>
+              )}
+
+              {/* Add New Option Input */}
+              <View style={styles.addOptionRow}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { flex: 1, backgroundColor: colors.card, borderColor: colors.border, color: colors.text },
+                  ]}
+                  placeholder={t('rewards.addOptionPlaceholder')}
+                  placeholderTextColor={colors.textSecondary}
+                  value={newOptionInputs[wheel.id] || ''}
+                  onChangeText={(txt) =>
+                    setNewOptionInputs((prev) => ({ ...prev, [wheel.id]: txt }))
+                  }
+                />
+                <TouchableOpacity
+                  onPress={() => handleAddOption(wheel.id)}
+                  style={[styles.addOptBtn, { backgroundColor: colors.secondary }]}
+                >
+                  <Ionicons name="add" size={20} color="#ffffff" />
+                  <Text style={styles.addOptBtnText}>{t('common.add') || 'Agregar'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          ))
-        ) : (
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('rewards.noRules')}</Text>
-        )}
-      </View>
+          );
+        })
+      )}
     </ScrollView>
   );
 };
@@ -291,6 +356,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...theme.typography.caption,
     marginBottom: theme.spacing.lg,
+    lineHeight: 18,
   },
   card: {
     borderRadius: theme.roundness.lg,
@@ -303,63 +369,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: theme.spacing.sm,
   },
-  studentSelector: {
+  periodSelector: {
     flexDirection: 'row',
     marginBottom: theme.spacing.xs,
   },
-  studentChip: {
+  periodChip: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.roundness.full,
     borderWidth: 1,
     marginRight: theme.spacing.xs,
   },
-  studentChipText: {
+  periodChipText: {
     ...theme.typography.caption,
     fontWeight: '600',
   },
-  fieldLabel: {
+  wheelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wheelTitle: {
+    ...theme.typography.bodySemibold,
+    fontSize: 16,
+  },
+  wheelSubtitle: {
+    ...theme.typography.caption,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  rangeBox: {
+    borderRadius: theme.roundness.md,
+    borderWidth: 1,
+    padding: theme.spacing.md,
+  },
+  sectionLabel: {
     ...theme.typography.caption,
     fontWeight: '700',
     textTransform: 'uppercase',
     fontSize: 10,
-    marginTop: theme.spacing.xs,
+    letterSpacing: 0.5,
     marginBottom: theme.spacing.xs,
   },
-  chipRow: {
+  rangeInputsRow: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.xs,
-  },
-  chip: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.roundness.full,
-    borderWidth: 1,
-    marginRight: theme.spacing.xs,
-  },
-  chipText: {
-    ...theme.typography.caption,
-    fontWeight: '600',
-  },
-  conditionRow: {
-    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
   },
-  conditionChip: {
+  rangeField: {
     flex: 1,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.roundness.full,
-    borderWidth: 1,
-    alignItems: 'center',
   },
-  conditionChipText: {
+  inputLabel: {
     ...theme.typography.caption,
-    fontWeight: '600',
-    fontSize: 11,
-  },
-  inputGroup: {
-    marginBottom: theme.spacing.xs,
+    fontSize: 10,
+    marginBottom: 4,
   },
   input: {
     height: 40,
@@ -368,52 +439,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     fontSize: 13,
   },
-  rewardTypeRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
+  rangeSeparator: {
+    paddingBottom: 10,
+    fontSize: 16,
+    fontWeight: '700',
   },
-  typeChip: {
-    flex: 1,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.roundness.full,
-    borderWidth: 1,
+  saveRangeBtn: {
+    height: 40,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.roundness.md,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  typeChipText: {
+  saveRangeBtnText: {
     ...theme.typography.caption,
-    fontWeight: '600',
-    fontSize: 11,
+    color: '#ffffff',
+    fontWeight: '700',
   },
-  ruleItem: {
+  optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: theme.spacing.sm,
     borderBottomWidth: 1,
   },
-  ruleInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    flex: 1,
+  optionText: {
+    ...theme.typography.body,
+    fontSize: 13,
   },
-  ruleSubjectText: {
-    ...theme.typography.bodySemibold,
-    fontSize: 14,
-  },
-  ruleDescText: {
-    ...theme.typography.caption,
-    fontSize: 11,
-  },
-  deleteBtn: {
+  deleteOptBtn: {
     padding: theme.spacing.xs,
   },
   emptyText: {
     ...theme.typography.caption,
     fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  addOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.md,
+  },
+  addOptBtn: {
+    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.roundness.md,
+    gap: 4,
+  },
+  addOptBtnText: {
+    ...theme.typography.caption,
+    color: '#ffffff',
+    fontWeight: '700',
   },
 });
 

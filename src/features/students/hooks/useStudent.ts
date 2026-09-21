@@ -3,135 +3,256 @@ import { Animated, Easing } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../store/AuthContext';
 import { StudentWithGrades, INITIAL_STUDENTS } from '../../../mocks/userMock';
+import dbService, {
+  StudentRow,
+  GradeLogRow,
+  PeriodRow,
+  PeriodWheelRow,
+  StudentPeriodSpinRow,
+} from '../../../database/dbService';
 
 export const useStudent = () => {
   const { user } = useAuth();
   const { t } = useTranslation();
-  
+
   const [studentData, setStudentData] = useState<StudentWithGrades | null>(null);
-  const [activeWheel, setActiveWheel] = useState<'gold' | 'consequences' | 'locked'>('locked');
+  const [periods, setPeriods] = useState<PeriodRow[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+
+  const [activeWheelInfo, setActiveWheelInfo] = useState<{
+    wheel: PeriodWheelRow;
+    options: string[];
+  } | null>(null);
+
+  const [savedSpinRecord, setSavedSpinRecord] = useState<StudentPeriodSpinRow | null>(null);
+
   const [spinResult, setSpinResult] = useState<string | null>(null);
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
-  
+
   const spinValue = useRef(new Animated.Value(0)).current;
 
-  const goldOptions = [
-    '+$50 Mesada',
-    '+1h Consola',
-    'Salida Cine',
-    'Juego Nuevo',
-    'Día Libre',
-    '+100 Puntos',
-  ];
+  const [gradesHistory, setGradesHistory] = useState<(GradeLogRow & { subject_name?: string })[]>([]);
+  const [subjectAveragesMap, setSubjectAveragesMap] = useState<Record<string, { subjectName: string; average: number; count: number }>>({});
 
-  const consequenceOptions = [
-    '-20% Mesada',
-    'Sin Consola',
-    'Tareas Extra',
-    '-50 Puntos',
-    'Sin Salida',
-    'Limpiar Cuarto',
-  ];
+  // Grade Detail Modal state
+  const [selectedGradeDetail, setSelectedGradeDetail] = useState<GradeLogRow | null>(null);
+  const [gradeDetailReward, setGradeDetailReward] = useState<{
+    title: string;
+    reward_type: string;
+    reward_value: string;
+    rule_type: string;
+  } | null>(null);
+  const [isGradeDetailModalOpen, setIsGradeDetailModalOpen] = useState<boolean>(false);
+
+  const openGradeDetail = async (gradeLog: GradeLogRow) => {
+    setSelectedGradeDetail(gradeLog);
+    setIsGradeDetailModalOpen(true);
+    try {
+      const reward = await dbService.getRewardForGradeLog(gradeLog);
+      setGradeDetailReward(reward);
+    } catch (e) {
+      console.error('Error fetching reward for grade detail:', e);
+      setGradeDetailReward(null);
+    }
+  };
+
+  const closeGradeDetail = () => {
+    setIsGradeDetailModalOpen(false);
+    setSelectedGradeDetail(null);
+    setGradeDetailReward(null);
+  };
 
   useEffect(() => {
-    if (user) {
-      const match = INITIAL_STUDENTS.find((s) => s.username === user.username);
-      if (match) {
-        setStudentData(match);
-      } else {
-        setStudentData({
-          id: user.id,
-          username: user.username,
-          fullName: user.fullName,
-          email: user.email,
-          role: 'student',
-          points: user.points,
-          grades: [],
-          average: 0,
-          periodType: 'semester',
-          gradingSystem: 'percentage',
-          subjectRules: [],
-        });
-      }
-    }
+    loadInitialData();
   }, [user]);
 
-  useEffect(() => {
-    if (studentData) {
-      const avg = studentData.average;
-      if (studentData.grades.length === 0) {
-        setActiveWheel('locked');
-      } else if (avg >= 90) {
-        setActiveWheel('gold');
-      } else if (avg < 70) {
-        setActiveWheel('consequences');
-      } else {
-        setActiveWheel('locked');
+  const loadInitialData = async () => {
+    if (!user) return;
+    try {
+      let pList = await dbService.getAllPeriods();
+      if (pList.length === 0) {
+        const defP = await dbService.createPeriod('Primer Semestre', 'semester', 'admin');
+        pList = [defP];
       }
-    }
-  }, [studentData]);
+      setPeriods(pList);
+      if (pList.length > 0) {
+        setSelectedPeriodId(pList[0].id);
+      }
 
-  const spin = () => {
-    if (isSpinning || activeWheel === 'locked') return;
+      await loadStudentFromDb();
+    } catch (e) {
+      console.error('Error loading initial student data:', e);
+    }
+  };
+
+  const loadStudentFromDb = async () => {
+    if (!user) return;
+    try {
+      const allSts = await dbService.getAllStudents();
+      const match = allSts.find((s: StudentRow) => s.id === user.id || s.username === user.username);
+      if (match) {
+        const avgRes = await dbService.calculateAndUpdateStudentAverage(match.id);
+        setSubjectAveragesMap(avgRes.subjectAverages);
+
+        const history = await dbService.getGradesForStudent(match.id);
+        setGradesHistory(history);
+
+        setStudentData({
+          id: match.id,
+          username: match.username,
+          fullName: match.full_name,
+          email: match.email,
+          role: 'student',
+          points: match.points,
+          grades: history.map((h: GradeLogRow) => h.numeric_grade),
+          average: avgRes.globalAverage || match.average || 0,
+          periodType: match.period_type,
+          gradingSystem: match.grading_system,
+          subjectRules: [],
+        });
+      } else {
+        const initialMatch = INITIAL_STUDENTS.find((s) => s.username === user.username);
+        if (initialMatch) {
+          setStudentData(initialMatch);
+        } else {
+          setStudentData({
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            email: user.email,
+            role: 'student',
+            points: user.points,
+            grades: [],
+            average: 0,
+            periodType: 'semester',
+            gradingSystem: 'percentage',
+            subjectRules: [],
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error loading student data from DB:', e);
+    }
+  };
+
+  const resolveWheelForStudentAndPeriod = async (studentId: string, periodId: string) => {
+    if (!studentId || !periodId) return;
+    try {
+      const spinRecord = await dbService.getStudentPeriodSpin(studentId, periodId);
+      setSavedSpinRecord(spinRecord);
+
+      const matched = await dbService.getMatchingWheelForStudent(studentId, periodId);
+      setActiveWheelInfo(matched);
+    } catch (e) {
+      console.error('Error resolving matching wheel and spin record:', e);
+    }
+  };
+
+  const resetSpinOpportunity = async (studentId: string, periodId: string) => {
+    if (!studentId || !periodId) return;
+    try {
+      await dbService.resetStudentPeriodSpin(studentId, periodId);
+      setSavedSpinRecord(null);
+      setSpinResult(null);
+      await resolveWheelForStudentAndPeriod(studentId, periodId);
+    } catch (e) {
+      console.error('Error resetting spin opportunity:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (studentData && selectedPeriodId) {
+      resolveWheelForStudentAndPeriod(studentData.id, selectedPeriodId);
+    }
+  }, [studentData, selectedPeriodId]);
+
+  const currentAngleRef = useRef<number>(0);
+
+  const spin = (customOptions?: string[], studentIdForSpin?: string) => {
+    const availableOptions = customOptions || activeWheelInfo?.options || [];
+    const N = availableOptions.length;
+    if (isSpinning || N === 0 || savedSpinRecord) return;
 
     setIsSpinning(true);
     setSpinResult(null);
-    spinValue.setValue(0);
 
-    const randomSpins = 5 + Math.floor(Math.random() * 5);
-    const targetValue = randomSpins * 360;
+    // Pick winning index beforehand
+    const winningIndex = Math.floor(Math.random() * N);
+    const winningItem = availableOptions[winningIndex];
+
+    // Calculate exact target angle so winning item stops directly under top arrow
+    const segmentAngle = 360 / N;
+    const stopAngle = 360 - (winningIndex * segmentAngle);
+    const fullSpins = 5 + Math.floor(Math.random() * 4);
+
+    const currentAngle = currentAngleRef.current;
+    const currentMod = currentAngle % 360;
+    let delta = stopAngle - currentMod;
+    if (delta <= 0) {
+      delta += 360;
+    }
+
+    const totalNewRotation = currentAngle + delta + fullSpins * 360;
+    currentAngleRef.current = totalNewRotation;
 
     Animated.timing(spinValue, {
-      toValue: targetValue,
-      duration: 3000,
+      toValue: totalNewRotation,
+      duration: 3500,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
-    }).start(() => {
+    }).start(async () => {
       setIsSpinning(false);
-      
-      const options = activeWheel === 'gold' ? goldOptions : consequenceOptions;
-      const selectedIndex = Math.floor(Math.random() * options.length);
-      const result = options[selectedIndex];
-      
-      setSpinResult(result);
+      setSpinResult(winningItem);
 
-      if (studentData) {
-        let updatedPoints = studentData.points;
-        if (activeWheel === 'gold') {
-          if (result === '+$50 Mesada') updatedPoints += 150;
-          else if (result === '+100 Puntos') updatedPoints += 100;
-          else updatedPoints += 50;
-        } else if (activeWheel === 'consequences') {
-          if (result === '-20% Mesada') updatedPoints = Math.round(updatedPoints * 0.8);
-          else if (result === '-50 Puntos') updatedPoints = Math.max(0, updatedPoints - 50);
-          else updatedPoints = Math.max(0, updatedPoints - 20);
+      const stId = studentIdForSpin || studentData?.id || '';
+      if (stId && selectedPeriodId && activeWheelInfo?.wheel.id) {
+        try {
+          const rec = await dbService.saveStudentPeriodSpin(
+            stId,
+            selectedPeriodId,
+            activeWheelInfo.wheel.id,
+            winningItem
+          );
+          setSavedSpinRecord(rec);
+        } catch (e) {
+          console.error('Error saving spin record to SQLite:', e);
         }
-
-        setStudentData({
-          ...studentData,
-          points: updatedPoints,
-        });
       }
     });
   };
 
   const getInterpolatedRotation = () => {
     return spinValue.interpolate({
-      inputRange: [0, 3600],
-      outputRange: ['0deg', '3600deg'],
+      inputRange: [0, 360000],
+      outputRange: ['0deg', '360000deg'],
     });
   };
 
+  const clearSpinResult = () => setSpinResult(null);
+
   return {
     studentData,
-    activeWheel,
+    periods,
+    selectedPeriodId,
+    setSelectedPeriodId,
+    activeWheelInfo,
+    savedSpinRecord,
+    resolveWheelForStudentAndPeriod,
+    resetSpinOpportunity,
+    gradesHistory,
+    subjectAveragesMap,
+    selectedGradeDetail,
+    gradeDetailReward,
+    isGradeDetailModalOpen,
+    openGradeDetail,
+    closeGradeDetail,
     spinResult,
+    clearSpinResult,
     isSpinning,
     spin,
     getInterpolatedRotation,
-    goldOptions,
-    consequenceOptions,
     t,
   };
 };
+
 export default useStudent;

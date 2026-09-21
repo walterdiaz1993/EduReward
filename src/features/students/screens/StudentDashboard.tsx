@@ -9,6 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
 import useStudent from '../hooks/useStudent';
+import GradeDetailModal from '../components/GradeDetailModal';
 
 interface StudentDashboardProps {
   onBack: () => void;
@@ -17,6 +18,13 @@ interface StudentDashboardProps {
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) => {
   const {
     studentData,
+    gradesHistory,
+    subjectAveragesMap,
+    selectedGradeDetail,
+    gradeDetailReward,
+    isGradeDetailModalOpen,
+    openGradeDetail,
+    closeGradeDetail,
     t,
   } = useStudent();
 
@@ -25,20 +33,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
     if (avg < 70) return theme.colors.error;
     return theme.colors.primary;
   };
-
-  const renderGradeItem = ({ item, index }: { item: number; index: number }) => (
-    <View style={styles.gradeCard}>
-      <Text style={styles.gradeIndex}>{t('admin.percentage')} #{index + 1}</Text>
-      <Text
-        style={[
-          styles.gradeValueText,
-          { color: getAverageColor(item) },
-        ]}
-      >
-        {item}
-      </Text>
-    </View>
-  );
 
   return (
     <FlatList
@@ -54,7 +48,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
           {studentData && (
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>{t('student.average')}</Text>
+                <Text style={styles.summaryLabel}>Promedio Global</Text>
                 <Text
                   style={[
                     styles.summaryValue,
@@ -69,6 +63,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
                 <Text style={[styles.summaryValue, { color: theme.colors.primary }]}>
                   {studentData.points}
                 </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Per-Subject Averages Card */}
+          {Object.keys(subjectAveragesMap).length > 0 && (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Promedios por Materia</Text>
+              <View style={{ gap: 8, marginTop: theme.spacing.sm }}>
+                {Object.entries(subjectAveragesMap).map(([sbId, data]) => (
+                  <View key={sbId} style={styles.subjectAvgRow}>
+                    <Ionicons name="book-outline" size={18} color={theme.colors.secondary} />
+                    <Text style={styles.subjectAvgName}>{data.subjectName}</Text>
+                    <View style={styles.subjectAvgBadge}>
+                      <Text style={styles.subjectAvgValueText}>
+                        Prom: {data.average} ({data.count} notas)
+                      </Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             </View>
           )}
@@ -111,21 +125,45 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
             </View>
           )}
 
+          {/* Complete Grade History */}
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t('student.gradesTitle')}</Text>
-            {studentData && studentData.grades.length > 0 ? (
-              <FlatList
-                data={studentData.grades}
-                renderItem={renderGradeItem}
-                keyExtractor={(_, index) => index.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.gradesList}
-              />
+            <Text style={styles.sectionTitle}>Histórico de Calificaciones</Text>
+            {gradesHistory.length > 0 ? (
+              <View style={{ gap: 8, marginTop: theme.spacing.sm }}>
+                {gradesHistory.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => openGradeDetail(item)}
+                    style={styles.gradeHistoryCard}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.gradeHistorySubject}>{item.subject_name || 'Materia'}</Text>
+                      <Text style={styles.gradeHistoryDate}>
+                        {new Date(item.created_at).toLocaleDateString()} — Sistema: {item.grading_system}
+                      </Text>
+                    </View>
+                    <Text style={[styles.gradeHistoryValue, { color: getAverageColor(item.numeric_grade) }]}>
+                      {item.raw_grade}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
             ) : (
               <Text style={styles.noGradesText}>{t('student.noGrades')}</Text>
             )}
           </View>
+
+          {/* Grade Detail Modal */}
+          <GradeDetailModal
+            visible={isGradeDetailModalOpen}
+            gradeLog={selectedGradeDetail}
+            subjectName={(selectedGradeDetail as any)?.subject_name || 'Materia'}
+            reward={gradeDetailReward}
+            onClose={closeGradeDetail}
+            onEdit={() => {}}
+            onDelete={() => {}}
+          />
         </View>
       }
     />
@@ -289,6 +327,52 @@ const styles = StyleSheet.create({
   gradeValueText: {
     ...theme.typography.h2,
     fontSize: 20,
+  },
+  subjectAvgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+    gap: 8,
+  },
+  subjectAvgName: {
+    ...theme.typography.bodySemibold,
+    fontSize: 14,
+    flex: 1,
+  },
+  subjectAvgBadge: {
+    backgroundColor: theme.colors.primary + '15',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.roundness.full,
+  },
+  subjectAvgValueText: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  gradeHistoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.roundness.md,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  gradeHistorySubject: {
+    ...theme.typography.bodySemibold,
+    fontSize: 14,
+  },
+  gradeHistoryDate: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  gradeHistoryValue: {
+    ...theme.typography.h2,
+    fontSize: 20,
+    fontWeight: '700',
   },
   noGradesText: {
     ...theme.typography.caption,

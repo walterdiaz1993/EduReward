@@ -2,6 +2,7 @@ import React from 'react';
 import {
   FlatList,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,8 +18,12 @@ import Button from '../../../components/Button';
 import Input from '../../../components/Input';
 import StudentConfigForm from '../components/StudentConfigForm';
 import PeriodAssignmentModal from '../components/PeriodAssignmentModal';
+import RewardCelebrationModal from '../components/RewardCelebrationModal';
+import GradeDetailModal from '../components/GradeDetailModal';
+import StudentCardModal from '../components/StudentCardModal';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
+import { getGradingSystemLabel } from '../../periods/constants/periods.constants';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -29,17 +34,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
+  const [scanned, setScanned] = React.useState<boolean>(false);
   const {
     students,
     allStudents,
     selectedStudent,
+    assignedSubjects,
+    selectedSubjectItem,
+    selectAssignedSubject,
+    subjectGradeHistory,
+    subjectAveragesMap,
+    selectedCarnetStudent,
+    isCarnetModalOpen,
+    openCarnetModal,
+    closeCarnetModal,
+    selectedGradeDetail,
+    gradeDetailReward,
+    isGradeDetailModalOpen,
+    openGradeDetail,
+    closeGradeDetail,
+    editingGradeLog,
+    editGradeValue,
+    setEditGradeValue,
+    openEditGrade,
+    closeEditGrade,
+    handleUpdateGrade,
+    handleDeleteGrade,
+    triggeredReward,
+    closeRewardModal,
     isScannerOpen,
     isGradeModalOpen,
     isCreateModalOpen,
     isPeriodModalOpen,
     isConfigMode,
     gradingSystem,
-    setGradingSystem,
     gradeValue,
     setGradeValue,
     newStudentName,
@@ -49,6 +77,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
     alertMessage,
     alertType,
     cameraPermission,
+    requestPermission,
     openScanner,
     closeScanner,
     handleScanStudent,
@@ -66,6 +95,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
     checkCreationLimit,
     reloadFromDb,
   } = adminState;
+
+  React.useEffect(() => {
+    if (isScannerOpen) {
+      setScanned(false);
+    }
+  }, [isScannerOpen]);
 
   const getRoleTitle = () => {
     if (user?.role === 'tutor') {
@@ -96,11 +131,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
           <Text style={[styles.studentNameText, { color: colors.text }]}>{item.fullName}</Text>
           <Text style={[styles.studentUserText, { color: colors.textSecondary }]}>@{item.username}</Text>
           <View style={styles.badgeRow}>
-            <View style={[styles.miniBadge, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={[styles.miniBadgeText, { color: colors.primary }]}>
-                {t('home.points')}: {item.points}
-              </Text>
-            </View>
             <View style={[styles.miniBadge, { backgroundColor: colors.secondary + '20' }]}>
               <Text style={[styles.miniBadgeText, { color: colors.secondary }]}>
                 {t('admin.averageShort', { avg: item.average })}
@@ -118,6 +148,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
         >
           <Ionicons name="add-circle-outline" size={16} color={colors.white} />
           <Text style={styles.actionBtnText}>{t('admin.submitBtn')}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => openCarnetModal(item)}
+          style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="card-outline" size={16} color={colors.white} />
+          <Text style={styles.actionBtnText}>Carnet</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -232,18 +271,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
 
                 {cameraPermission?.granted ? (
                   <View style={styles.cameraBox}>
-                    <CameraView style={StyleSheet.absoluteFillObject} facing="back" />
+                    <CameraView
+                      style={StyleSheet.absoluteFillObject}
+                      facing="back"
+                      barcodeScannerSettings={{
+                        barcodeTypes: ['qr', 'code128', 'ean13'],
+                      }}
+                      onBarcodeScanned={
+                        scanned
+                          ? undefined
+                          : (result) => {
+                              if (result && result.data) {
+                                setScanned(true);
+                                handleScanStudent(result.data);
+                              }
+                            }
+                      }
+                    />
                     <View style={styles.overlayScannerBox}>
                       <View style={styles.scanFrame} />
                     </View>
                   </View>
                 ) : (
                   <View style={styles.cameraFallbackBox}>
-                    <Ionicons name="camera-outline" size={48} color={colors.primary} />
+                    <Ionicons name="camera-outline" size={36} color={colors.primary} />
                     <Text style={[styles.scannerDesc, { color: colors.textSecondary }]}>
-                      {t('admin.scanSimDesc')}
+                      Se requiere permiso de cámara para escanear los carnets QR.
                     </Text>
+                    <TouchableOpacity
+                      onPress={requestPermission}
+                      style={{
+                        backgroundColor: colors.primary,
+                        paddingHorizontal: 16,
+                        paddingVertical: 10,
+                        borderRadius: theme.roundness.md,
+                        marginTop: 8,
+                      }}
+                    >
+                      <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                        Conceder Permiso de Cámara
+                      </Text>
+                    </TouchableOpacity>
                   </View>
+                )}
+
+                {scanned && (
+                  <TouchableOpacity
+                    onPress={() => setScanned(false)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: colors.primary + '20',
+                      borderColor: colors.primary,
+                      borderWidth: 1,
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Ionicons name="refresh-circle" size={18} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
+                      Código leído. Toca para volver a escanear
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
                 {/* Quick Simulation Options for testing */}
@@ -291,7 +384,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
                           {t('admin.studentName', { name: selectedStudent.fullName })}
                         </Text>
                         <Text style={[styles.selectedStudentDetails, { color: colors.textSecondary }]}>
-                          {t('student.average')}: {selectedStudent.average} | {t('home.points')}: {selectedStudent.points}
+                          Promedio Global: {selectedStudent.average}
                         </Text>
                       </View>
                     )}
@@ -303,6 +396,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
                           alertType === 'reward' && styles.alertReward,
                           alertType === 'punish' && styles.alertPunish,
                           alertType === 'error' && styles.alertError,
+                          alertType === 'success' && styles.alertReward,
                         ]}
                       >
                         <Text style={styles.alertText}>{alertMessage}</Text>
@@ -311,66 +405,116 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
 
                     {!alertMessage && (
                       <>
-                        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('admin.gradeSystem')}</Text>
-                        <View style={styles.systemSelectorRow}>
-                          <TouchableOpacity
-                            onPress={() => setGradingSystem('percentage')}
-                            style={[
-                              styles.systemChip,
-                              { borderColor: colors.border, backgroundColor: colors.background },
-                              gradingSystem === 'percentage' && { backgroundColor: colors.primary, borderColor: colors.primary },
-                            ]}
-                          >
-                            <Text style={[styles.systemChipText, { color: gradingSystem === 'percentage' ? colors.white : colors.text }]}>
-                              {t('admin.base100')}
+                        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                          1. Seleccionar Materia Asignada
+                        </Text>
+
+                        {assignedSubjects.length === 0 ? (
+                          <View style={[styles.noSubjectsWarning, { backgroundColor: colors.primary + '10', borderColor: colors.primary }]}>
+                            <Ionicons name="information-circle-outline" size={22} color={colors.primary} />
+                            <Text style={[styles.noSubjectsWarningText, { color: colors.text }]}>
+                              Este estudiante aún no tiene materias asignadas. Asígnalas primero haciendo clic en el ícono de la tuerca ⚙️ en su tarjeta.
                             </Text>
-                          </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.systemSelectorRow}>
+                              {assignedSubjects.map((sb) => {
+                                const isSelected = selectedSubjectItem?.id === sb.id;
+                                const sysLabel = getGradingSystemLabel((sb.grading_system as GradingSystem) || 'percentage', t);
+                                return (
+                                  <TouchableOpacity
+                                    key={sb.id}
+                                    onPress={() => selectAssignedSubject(sb)}
+                                    style={[
+                                      styles.assignedSubjectChip,
+                                      { borderColor: colors.border, backgroundColor: colors.background },
+                                      isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                                    ]}
+                                  >
+                                    <Ionicons
+                                      name={isSelected ? 'checkmark-circle' : 'book-outline'}
+                                      size={14}
+                                      color={isSelected ? colors.white : colors.textSecondary}
+                                    />
+                                    <Text style={[styles.assignedSubjectChipText, { color: isSelected ? colors.white : colors.text }]}>
+                                      {sb.name} ({sysLabel})
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
 
-                          <TouchableOpacity
-                            onPress={() => setGradingSystem('decimal')}
-                            style={[
-                              styles.systemChip,
-                              { borderColor: colors.border, backgroundColor: colors.background },
-                              gradingSystem === 'decimal' && { backgroundColor: colors.primary, borderColor: colors.primary },
-                            ]}
-                          >
-                            <Text style={[styles.systemChipText, { color: gradingSystem === 'decimal' ? colors.white : colors.text }]}>
-                              {t('admin.base10')}
+                            {selectedSubjectItem && (
+                              <View style={[styles.selectedSubjectBanner, { backgroundColor: colors.secondary + '15', borderColor: colors.secondary }]}>
+                                <Ionicons name="school-outline" size={18} color={colors.secondary} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.selectedSubjectBannerText, { color: colors.text }]}>
+                                    Materia: <Text style={{ fontWeight: '700' }}>{selectedSubjectItem.name}</Text> ({getGradingSystemLabel(selectedSubjectItem.grading_system as GradingSystem, t)})
+                                  </Text>
+                                  {subjectAveragesMap[selectedSubjectItem.id] ? (
+                                    <Text style={[styles.subjectAvgText, { color: colors.secondary }]}>
+                                      Promedio en Materia: <Text style={{ fontWeight: '700', fontSize: 13 }}>{subjectAveragesMap[selectedSubjectItem.id].average}</Text> ({subjectAveragesMap[selectedSubjectItem.id].count} notas)
+                                    </Text>
+                                  ) : (
+                                    <Text style={[styles.subjectAvgText, { color: colors.textSecondary }]}>
+                                      Sin notas registradas aún en esta materia
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                            )}
+
+                            {/* Grade History for Selected Subject */}
+                            <Text style={[styles.fieldLabel, { color: colors.textSecondary, marginTop: 8 }]}>
+                              Histórico de Calificaciones ({subjectGradeHistory.length})
                             </Text>
-                          </TouchableOpacity>
 
-                          <TouchableOpacity
-                            onPress={() => setGradingSystem('letters')}
-                            style={[
-                              styles.systemChip,
-                              { borderColor: colors.border, backgroundColor: colors.background },
-                              gradingSystem === 'letters' && { backgroundColor: colors.primary, borderColor: colors.primary },
-                            ]}
-                          >
-                            <Text style={[styles.systemChipText, { color: gradingSystem === 'letters' ? colors.white : colors.text }]}>
-                              {t('admin.alphabetical')}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                            {subjectGradeHistory.length > 0 ? (
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScrollRow}>
+                                {subjectGradeHistory.map((g) => (
+                                  <TouchableOpacity
+                                    key={g.id}
+                                    onPress={() => openGradeDetail(g)}
+                                    style={[styles.historyChip, { backgroundColor: colors.background, borderColor: colors.border }]}
+                                  >
+                                    <Ionicons name="ribbon-outline" size={14} color={colors.primary} />
+                                    <View style={{ flex: 1 }}>
+                                      <Text style={[styles.historyValueText, { color: colors.text }]}>{g.raw_grade}</Text>
+                                      <Text style={[styles.historyDateText, { color: colors.textSecondary }]}>
+                                        {new Date(g.created_at).toLocaleDateString()}
+                                      </Text>
+                                    </View>
+                                    <Ionicons name="eye-outline" size={14} color={colors.primary} />
+                                  </TouchableOpacity>
+                                ))}
+                              </ScrollView>
+                            ) : (
+                              <Text style={[styles.noHistoryText, { color: colors.textSecondary }]}>
+                                Aún no hay notas registradas para esta materia.
+                              </Text>
+                            )}
 
-                        <Input
-                          label={t('admin.submitBtn')}
-                          placeholder={
-                            gradingSystem === 'percentage'
-                              ? 'Ej. 85'
-                              : gradingSystem === 'decimal'
-                              ? 'Ej. 8.5'
-                              : 'Ej. A, B, C, D o F'
-                          }
-                          value={gradeValue}
-                          onChangeText={setGradeValue}
-                        />
+                            <Input
+                              label={t('admin.submitBtn')}
+                              placeholder={
+                                gradingSystem === 'percentage'
+                                  ? 'Ej. 85'
+                                  : gradingSystem === 'decimal'
+                                  ? 'Ej. 8.5'
+                                  : 'Ej. A, B, C, D o F'
+                              }
+                              value={gradeValue}
+                              onChangeText={setGradeValue}
+                            />
 
-                        <Button
-                          title={t('admin.submitBtn')}
-                          onPress={validateAndAddGrade}
-                          containerStyle={{ marginTop: 12 }}
-                        />
+                            <Button
+                              title={t('admin.submitBtn')}
+                              onPress={validateAndAddGrade}
+                              containerStyle={{ marginTop: 12 }}
+                            />
+                          </>
+                        )}
                       </>
                     )}
 
@@ -421,6 +565,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
             </View>
           </Modal>
 
+          {/* Edit Grade Modal */}
+          <Modal visible={!!editingGradeLog} animationType="fade" transparent={true} onRequestClose={closeEditGrade}>
+            <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+              <View style={[styles.modalContainer, { backgroundColor: colors.card, borderColor: colors.glassBorder }]}>
+                <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>Corregir Calificación</Text>
+                  <TouchableOpacity onPress={closeEditGrade}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+
+                <Input
+                  label="Nueva Calificación"
+                  placeholder="Ingresa la nota corregida"
+                  value={editGradeValue}
+                  onChangeText={setEditGradeValue}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <Button title="Cancelar" onPress={closeEditGrade} variant="secondary" containerStyle={{ flex: 1 }} />
+                  <Button title="Guardar Cambios" onPress={handleUpdateGrade} containerStyle={{ flex: 1 }} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+
           {/* Period Assignment Modal Component */}
           <PeriodAssignmentModal
             visible={isPeriodModalOpen}
@@ -428,6 +598,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
             onSuccess={() => {
               reloadFromDb();
             }}
+          />
+
+          {/* High Impact Reward Celebration Modal */}
+          <RewardCelebrationModal
+            visible={!!triggeredReward}
+            reward={triggeredReward}
+            subjectName={selectedSubjectItem?.name}
+            studentName={selectedStudent?.fullName}
+            onClose={closeRewardModal}
+          />
+
+          {/* Grade Detail Modal with Reward Info & Edit/Delete Options */}
+          <GradeDetailModal
+            visible={isGradeDetailModalOpen}
+            gradeLog={selectedGradeDetail}
+            subjectName={selectedSubjectItem?.name}
+            reward={gradeDetailReward}
+            onClose={closeGradeDetail}
+            onEdit={(g) => openEditGrade(g)}
+            onDelete={(gradeId) => handleDeleteGrade(gradeId)}
+          />
+
+          {/* Student ID Card / Carnet Estudiantil Modal */}
+          <StudentCardModal
+            visible={isCarnetModalOpen}
+            student={selectedCarnetStudent}
+            onClose={closeCarnetModal}
+            onScanThisStudent={(studentId) => handleScanStudent(studentId)}
           />
         </View>
       }
@@ -622,9 +820,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     padding: theme.spacing.lg,
   },
   modalContainer: {
+    width: '100%',
+    maxWidth: 400,
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
     borderWidth: 1,
@@ -642,10 +843,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   scannerModalContainer: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '90%',
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
-    maxHeight: '85%',
     borderWidth: 1,
+    overflow: 'hidden',
   },
   scannerHeader: {
     flexDirection: 'row',
@@ -656,10 +860,13 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   cameraBox: {
-    height: 200,
+    height: 260,
+    width: '100%',
     borderRadius: theme.roundness.md,
     overflow: 'hidden',
-    marginBottom: theme.spacing.md,
+    position: 'relative',
+    marginVertical: theme.spacing.sm,
+    backgroundColor: '#000000',
   },
   cameraFallbackBox: {
     height: 140,
@@ -730,20 +937,84 @@ const styles = StyleSheet.create({
   },
   systemSelectorRow: {
     flexDirection: 'row',
-    gap: 6,
     marginBottom: theme.spacing.md,
   },
-  systemChip: {
-    flex: 1,
+  assignedSubjectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.roundness.full,
     borderWidth: 1,
-    alignItems: 'center',
+    marginRight: theme.spacing.xs,
+    gap: 6,
   },
-  systemChipText: {
+  assignedSubjectChipText: {
     ...theme.typography.caption,
     fontSize: 11,
     fontWeight: '600',
+  },
+  selectedSubjectBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.roundness.md,
+    borderWidth: 1,
+    gap: 8,
+    marginBottom: theme.spacing.sm,
+  },
+  selectedSubjectBannerText: {
+    ...theme.typography.caption,
+    fontSize: 12,
+  },
+  subjectAvgText: {
+    ...theme.typography.caption,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  historyScrollRow: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.sm,
+  },
+  historyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.roundness.md,
+    borderWidth: 1,
+    marginRight: theme.spacing.xs,
+    gap: 6,
+  },
+  historyValueText: {
+    ...theme.typography.bodySemibold,
+    fontSize: 13,
+  },
+  historyDateText: {
+    ...theme.typography.caption,
+    fontSize: 9,
+  },
+  noHistoryText: {
+    ...theme.typography.caption,
+    fontStyle: 'italic',
+    fontSize: 11,
+    marginBottom: theme.spacing.xs,
+  },
+  noSubjectsWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.roundness.md,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: theme.spacing.md,
+  },
+  noSubjectsWarningText: {
+    ...theme.typography.caption,
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
   },
   alertBox: {
     padding: theme.spacing.md,

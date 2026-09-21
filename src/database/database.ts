@@ -23,6 +23,7 @@ async function initTables(db: SQLite.SQLiteDatabase) {
       email TEXT NOT NULL,
       parent_teacher_id TEXT,
       points INTEGER DEFAULT 0,
+      average REAL DEFAULT 0,
       period_type TEXT DEFAULT 'semester',
       grading_system TEXT DEFAULT 'percentage'
     );
@@ -59,6 +60,12 @@ async function initTables(db: SQLite.SQLiteDatabase) {
       subject_id TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS student_periods (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL,
+      period_id TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS grades_log (
       id TEXT PRIMARY KEY,
       student_id TEXT NOT NULL,
@@ -81,6 +88,34 @@ async function initTables(db: SQLite.SQLiteDatabase) {
       rule_type TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS period_wheels (
+      id TEXT PRIMARY KEY,
+      period_id TEXT NOT NULL,
+      wheel_key TEXT NOT NULL,
+      title TEXT NOT NULL,
+      min_grade REAL NOT NULL,
+      max_grade REAL NOT NULL,
+      color TEXT,
+      icon TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS period_wheel_options (
+      id TEXT PRIMARY KEY,
+      wheel_id TEXT NOT NULL,
+      option_text TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS student_period_spins (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL,
+      period_id TEXT NOT NULL,
+      wheel_id TEXT NOT NULL,
+      prize_text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(student_id, period_id) ON CONFLICT REPLACE
+    );
   `);
 
   // Migrations for existing databases created in previous app sessions
@@ -94,5 +129,23 @@ async function initTables(db: SQLite.SQLiteDatabase) {
     await db.execAsync("ALTER TABLE subjects ADD COLUMN grading_system TEXT DEFAULT 'percentage';");
   } catch (e) {
     // Column already exists or table was newly created
+  }
+
+  try {
+    await db.execAsync('ALTER TABLE students ADD COLUMN average REAL DEFAULT 0;');
+  } catch (e) {
+    // Column already exists or table was newly created
+  }
+
+  try {
+    await db.execAsync("UPDATE grades_log SET numeric_grade = numeric_grade / 10 WHERE grading_system = 'decimal' AND numeric_grade > 10;");
+  } catch (e) {
+    // Migration failed or table empty
+  }
+
+  try {
+    await db.execAsync("UPDATE students SET average = 0 WHERE average > 100;");
+  } catch (e) {
+    // Migration failed or table empty
   }
 }

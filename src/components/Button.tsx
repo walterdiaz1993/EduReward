@@ -32,15 +32,28 @@ export const Button: React.FC<ButtonProps> = ({
   const buttonStyle: ViewStyle[] = [
     styles.button,
     isPrimary
-      ? { backgroundColor: colors.primary }
-      : { backgroundColor: 'transparent', borderWidth: 2, borderColor: colors.primary },
+      ? {
+          backgroundColor: colors.primary,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 4,
+          elevation: 2,
+        }
+      : {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.border || colors.primary,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
     disabled || isLoading ? styles.disabledButton : {},
     containerStyle || {},
   ];
 
   const textStyle: TextStyle[] = [
     styles.text,
-    { color: isPrimary ? colors.white : colors.primary },
+    { color: isPrimary ? colors.white : colors.text },
   ];
 
   return (
@@ -72,11 +85,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   disabledButton: {
     opacity: 0.6,
