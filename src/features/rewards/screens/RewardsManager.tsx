@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
 import { useTranslation } from 'react-i18next';
@@ -15,11 +16,7 @@ import { useRewardsManager } from '../hooks/useRewardsManager';
 import { PeriodSelector } from '../components/PeriodSelector';
 import { WheelCard } from '../components/WheelCard';
 
-interface RewardsManagerProps {
-  onBack: () => void;
-}
-
-export const RewardsManager: React.FC<RewardsManagerProps> = ({ onBack }) => {
+export const RewardsManager: React.FC = () => {
   const { t } = useTranslation();
   const { colors } = useTheme();
 
@@ -42,12 +39,8 @@ export const RewardsManager: React.FC<RewardsManagerProps> = ({ onBack }) => {
   } = useRewardsManager();
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
-        <Text style={[styles.backButtonText, { color: colors.primary }]}>{t('common.backBtn', 'Volver')}</Text>
-      </TouchableOpacity>
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.text }]}>{t('rewards.managerTitle', 'Configuración de Recompensas')}</Text>
@@ -95,13 +88,16 @@ export const RewardsManager: React.FC<RewardsManagerProps> = ({ onBack }) => {
           />
         ))
       )}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: 110,
+    paddingTop: theme.spacing.md,
   },
   headerRow: {
     flexDirection: 'row',

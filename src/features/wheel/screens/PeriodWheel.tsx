@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
 import useStudent from '../../students/hooks/useStudent';
@@ -18,11 +19,7 @@ import { useAdmin } from '../../students/hooks/useAdmin';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
 
-interface PeriodWheelProps {
-  onBack: () => void;
-}
-
-export const PeriodWheel: React.FC<PeriodWheelProps> = ({ onBack }) => {
+export const PeriodWheel: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -129,11 +126,8 @@ export const PeriodWheel: React.FC<PeriodWheelProps> = ({ onBack }) => {
   const isSpunAlready = !!savedSpinRecord;
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
-        <Text style={[styles.backButtonText, { color: colors.primary }]}>{t('common.backBtn')}</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
       <Text style={[styles.title, { color: colors.text }]}>{t('home.menuWheel')}</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -362,13 +356,16 @@ export const PeriodWheel: React.FC<PeriodWheelProps> = ({ onBack }) => {
           </Animated.View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: 110,
+    paddingTop: theme.spacing.md,
   },
   backButton: {
     flexDirection: 'row',

@@ -31,9 +31,10 @@
     "haveAccount": "Already have an account? Sign In"
   },
   "home": {
-    "title": "Navigation Hub",
+    "title": "EduReward",
+    "welcomeLabel": "WELCOME BACK!",
     "welcome": "Hello, {{name}}!",
-    "subtitle": "Select a section from the system to continue.",
+    "subtitle": "Choose one of the options below to continue.",
     "role": "Role",
     "email": "Email Address",
     "points": "Points",
@@ -41,6 +42,8 @@
     "changeLanguage": "Change Language",
     "mockDataHeader": "Server Data (Mock)",
     "languagePrompt": "Current Language: English",
+    "menuPeriods": "Periods & Subjects",
+    "menuPeriodsDesc": "Create academic periods and assign subjects.",
     "menuRegisterTutor": "Children Setup",
     "menuRegisterTeacher": "Students Register",
     "menuRegisterDesc": "Record grades by scanning QR code or manually.",

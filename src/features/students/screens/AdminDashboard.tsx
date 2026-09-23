@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView } from 'expo-camera';
 import { theme } from '../../../config/theme';
@@ -25,12 +26,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
 import { getGradingSystemLabel } from '../../periods/constants/periods.constants';
 
-interface AdminDashboardProps {
-  onBack: () => void;
-  adminState: ReturnType<typeof useAdmin>;
-}
-
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminState }) => {
+export const AdminDashboard: React.FC = () => {
+  const adminState = useAdmin();
   const { t } = useTranslation();
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
@@ -172,16 +169,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
   );
 
   return (
-    <FlatList
-      data={[]}
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        data={[]}
       renderItem={null}
       ListEmptyComponent={
         <View style={styles.container}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={colors.primary} />
-            <Text style={[styles.backButtonText, { color: colors.primary }]}>{t('common.backBtn')}</Text>
-          </TouchableOpacity>
-
           <Text style={[styles.dashboardTitle, { color: colors.text }]}>{t('admin.title')}</Text>
 
           {/* Quick Scanner & Action Bar */}
@@ -644,12 +637,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
         </View>
       }
     />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: 110,
+    paddingTop: theme.spacing.md,
   },
   backButton: {
     flexDirection: 'row',

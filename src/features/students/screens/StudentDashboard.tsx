@@ -6,16 +6,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
 import useStudent from '../hooks/useStudent';
 import GradeDetailModal from '../components/GradeDetailModal';
 
-interface StudentDashboardProps {
-  onBack: () => void;
-}
-
-export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) => {
+export const StudentDashboard: React.FC = () => {
   const {
     studentData,
     gradesHistory,
@@ -35,15 +32,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
   };
 
   return (
-    <FlatList
-      data={[]}
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <FlatList
+        data={[]}
       renderItem={null}
       ListEmptyComponent={
         <View style={styles.container}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.primary} />
-            <Text style={styles.backButtonText}>{t('common.backBtn')}</Text>
-          </TouchableOpacity>
 
           {studentData && (
             <View style={styles.summaryRow}>
@@ -167,12 +161,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onBack }) =>
         </View>
       }
     />
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: theme.spacing.lg,
     paddingBottom: 110,
+    paddingTop: theme.spacing.md,
   },
   backButton: {
     flexDirection: 'row',

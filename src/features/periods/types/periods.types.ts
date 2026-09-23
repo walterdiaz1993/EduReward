@@ -1,8 +1,5 @@
 import { PeriodRow, StudentRow, SubjectRow, RewardRuleRow, PeriodType, GradingSystem } from '../../../database/dbService';
 
-export interface PeriodsSubjectsScreenProps {
-  onBack: () => void;
-}
 
 export interface EditableRuleSlot {
   minGradeStr: string;

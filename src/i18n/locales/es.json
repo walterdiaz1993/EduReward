@@ -31,9 +31,10 @@
     "haveAccount": "¿Ya tienes cuenta? Inicia Sesión"
   },
   "home": {
-    "title": "Menú de Navegación",
+    "title": "EduReward",
+    "welcomeLabel": "¡BIENVENIDO DE NUEVO!",
     "welcome": "¡Hola, {{name}}!",
-    "subtitle": "Selecciona una de las secciones del sistema para continuar.",
+    "subtitle": "Selecciona una de las opciones del sistema para continuar.",
     "role": "Rol",
     "email": "Correo electrónico",
     "points": "Puntos",
@@ -41,6 +42,8 @@
     "changeLanguage": "Cambiar Idioma",
     "mockDataHeader": "Datos del Servidor (Mock)",
     "languagePrompt": "Idioma actual: Español",
+    "menuPeriods": "Gestión de Períodos y Materias",
+    "menuPeriodsDesc": "Crea períodos lectivos y asigna materias.",
     "menuRegisterTutor": "Configuración de Hijos",
     "menuRegisterTeacher": "Registro de Alumnos",
     "menuRegisterDesc": "Registra calificaciones escaneando el QR o manualmente.",

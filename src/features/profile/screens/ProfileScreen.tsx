@@ -17,12 +17,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { theme } from '../../../config/theme';
 import Button from '../../../components/Button';
 
-interface ProfileScreenProps {
-  onBackToHome?: () => void;
-  onActivateTeacherPremium?: () => void;
-}
-
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherPremium }) => {
+export const ProfileScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { user, logout, updateUser } = useAuth();
   const { isDark, toggleTheme, colors } = useTheme();
@@ -54,9 +49,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherP
 
   const handleActivatePremium = () => {
     updateUser({ isPremium: true });
-    if (onActivateTeacherPremium) {
-      onActivateTeacherPremium();
-    }
     Alert.alert('¡Cuenta Premium Activada!', t('profile.premiumActivated'));
   };
 

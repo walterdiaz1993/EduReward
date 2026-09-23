@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,17 +11,21 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../../config/theme';
 import useHome from '../hooks/useHome';
-import useAdmin from '../../students/hooks/useAdmin';
 import { useTheme } from '../../../context/ThemeContext';
-import AdminDashboard from '../../students/screens/AdminDashboard';
-import StudentDashboard from '../../students/screens/StudentDashboard';
-import RewardsManager from '../../rewards/screens/RewardsManager';
-import PeriodWheel from '../../wheel/screens/PeriodWheel';
-import ProfileScreen from '../../profile/screens/ProfileScreen';
-import PeriodsSubjectsScreen from '../../periods/screens/PeriodsSubjectsScreen';
-import BottomTabBar, { TabType } from '../../../components/BottomTabBar';
+
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { AppStackParamList, MainTabParamList } from '../../../navigation/AppNavigator';
+
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'home'>,
+  NativeStackNavigationProp<AppStackParamList>
+>;
 
 export const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const {
     user,
     handleLogout,
@@ -30,10 +34,6 @@ export const HomeScreen: React.FC = () => {
   } = useHome();
 
   const { isDark, toggleTheme, colors } = useTheme();
-  const adminState = useAdmin();
-
-  const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [activeSection, setActiveSection] = useState<'menu' | 'students' | 'periods'>('menu');
 
   const getRoleColor = (role?: string) => {
     switch (role) {
@@ -46,183 +46,133 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const renderTabContent = () => {
-    if (!user) return null;
-
-    if (activeTab === 'profile') {
-      return (
-        <ProfileScreen
-          onActivateTeacherPremium={adminState.handleActivatePremium}
-        />
-      );
-    }
-
-    if (activeTab === 'rewards') {
-      if (user.role === 'tutor' || user.role === 'teacher') {
-        return (
-          <RewardsManager
-            onBack={() => setActiveTab('home')}
-          />
-        );
-      }
-
-      return <PeriodWheel onBack={() => setActiveTab('home')} />;
-    }
-
-    if (activeTab === 'wheel') {
-      return <PeriodWheel onBack={() => setActiveTab('home')} />;
-    }
-
-    // Default: 'home' tab
-    if (activeSection === 'students') {
-      if (user.role === 'tutor' || user.role === 'teacher') {
-        return <AdminDashboard onBack={() => setActiveSection('menu')} adminState={adminState} />;
-      }
-      return <StudentDashboard onBack={() => setActiveSection('menu')} />;
-    }
-
-    if (activeSection === 'periods') {
-      return <PeriodsSubjectsScreen onBack={() => setActiveSection('menu')} />;
-    }
-
-    return (
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.menuHub}>
-          <Text style={[styles.hubTitle, { color: colors.text }]}>{t('home.title')}</Text>
-          <Text style={[styles.hubSubtitle, { color: colors.textSecondary }]}>{t('home.subtitle')}</Text>
-
-          {(user.role === 'teacher' || user.role === 'tutor') && (
-            <TouchableOpacity
-              onPress={() => setActiveSection('periods')}
-              style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
-                <Ionicons name="calendar-outline" size={24} color={colors.secondary} />
-              </View>
-              <View style={styles.menuCardContent}>
-                <Text style={[styles.menuCardTitle, { color: colors.text }]}>Gestión de Períodos y Materias</Text>
-                <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>Crea períodos lectivos y asigna sus materias correspondientes.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            onPress={() => setActiveSection('students')}
-            style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconBox, { backgroundColor: colors.primary + '20' }]}>
-              <Ionicons name="people-outline" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.menuCardContent}>
-              <Text style={[styles.menuCardTitle, { color: colors.text }]}>
-                {user.role === 'teacher'
-                  ? t('home.menuRegisterTeacher')
-                  : user.role === 'tutor'
-                  ? t('home.menuRegisterTutor')
-                  : t('student.qrTitle')}
-              </Text>
-              <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuRegisterDesc')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('rewards')}
-            style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
-              <Ionicons name="ribbon-outline" size={24} color={colors.secondary} />
-            </View>
-            <View style={styles.menuCardContent}>
-              <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuRewards')}</Text>
-              <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuRewardsDesc')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setActiveTab('wheel')}
-            style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconBox, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]}>
-              <Ionicons name="aperture-outline" size={24} color="#8b5cf6" />
-            </View>
-            <View style={styles.menuCardContent}>
-              <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuWheel')}</Text>
-              <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuWheelDesc')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    );
-  };
+  if (!user) return null;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={styles.container}>
-        {activeTab !== 'profile' && (
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <View>
-              <Text style={[styles.welcomeLabel, { color: colors.textSecondary }]}>{t('common.loading').slice(0, -3)}</Text>
-              <View style={styles.userInfoHeader}>
-                <Text style={[styles.welcomeText, { color: colors.text }]}>{user?.fullName}</Text>
-                {user && (
-                  <View
-                    style={[
-                      styles.roleBadge,
-                      { backgroundColor: getRoleColor(user.role) + '20' },
-                    ]}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>
-                        {user.role === 'teacher'
-                          ? user.isPremium ? 'DOCENTE PREMIUM' : 'DOCENTE'
-                          : user.role === 'tutor'
-                          ? 'TUTOR'
-                          : 'ALUMNO'}
-                      </Text>
-                      {user.role === 'teacher' && user.isPremium && (
-                        <Ionicons name="star" size={12} color={getRoleColor(user.role)} />
-                      )}
-                    </View>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <View>
+            <Text style={[styles.welcomeLabel, { color: colors.textSecondary }]}>{t('home.welcomeLabel', '¡BIENVENIDO!')}</Text>
+            <View style={styles.userInfoHeader}>
+              <Text style={[styles.welcomeText, { color: colors.text }]}>{user?.fullName}</Text>
+              {user && (
+                <View
+                  style={[
+                    styles.roleBadge,
+                    { backgroundColor: getRoleColor(user.role) + '20' },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={[styles.roleText, { color: getRoleColor(user.role) }]}>
+                      {user.role === 'teacher'
+                        ? user.isPremium ? 'DOCENTE PREMIUM' : 'DOCENTE'
+                        : user.role === 'tutor'
+                        ? 'TUTOR'
+                        : 'ALUMNO'}
+                    </Text>
+                    {user.role === 'teacher' && user.isPremium && (
+                      <Ionicons name="star" size={12} color={getRoleColor(user.role)} />
+                    )}
                   </View>
-                )}
-              </View>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={toggleTheme} style={[styles.iconButton, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]} activeOpacity={0.7}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleLanguage} style={[styles.iconButton, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]} activeOpacity={0.7}>
-                <Ionicons name="globe-outline" size={20} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleLogout}
-                style={[styles.iconButton, styles.logoutButton, { backgroundColor: colors.cardTranslucent }]}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="log-out-outline" size={20} color={colors.error} />
-              </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
-        )}
-
-        <View style={styles.bodyContent}>
-          {renderTabContent()}
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={toggleTheme} style={[styles.iconButton, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]} activeOpacity={0.7}>
+              <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleLanguage} style={[styles.iconButton, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]} activeOpacity={0.7}>
+              <Ionicons name="globe-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={[styles.iconButton, styles.logoutButton, { backgroundColor: colors.cardTranslucent }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Bottom Tab Bar */}
-        <BottomTabBar activeTab={activeTab} onTabChange={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'home') setActiveSection('menu');
-        }} />
+        <View style={styles.bodyContent}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.menuHub}>
+              <Text style={[styles.hubTitle, { color: colors.text }]}>{t('home.title')}</Text>
+              <Text style={[styles.hubSubtitle, { color: colors.textSecondary }]}>{t('home.subtitle')}</Text>
+
+              {(user.role === 'teacher' || user.role === 'tutor') && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('PeriodsSubjects')}
+                  style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                    <Ionicons name="calendar-outline" size={24} color={colors.secondary} />
+                  </View>
+                  <View style={styles.menuCardContent}>
+                    <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuPeriods', 'Gestión de Períodos y Materias')}</Text>
+                    <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuPeriodsDesc', 'Crea períodos lectivos y asigna sus materias correspondientes.')}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                onPress={() => user.role === 'teacher' || user.role === 'tutor' ? navigation.navigate('AdminDashboard') : navigation.navigate('StudentDashboard')}
+                style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name="people-outline" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.menuCardContent}>
+                  <Text style={[styles.menuCardTitle, { color: colors.text }]}>
+                    {user.role === 'teacher'
+                      ? t('home.menuRegisterTeacher')
+                      : user.role === 'tutor'
+                      ? t('home.menuRegisterTutor')
+                      : t('student.qrTitle')}
+                  </Text>
+                  <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuRegisterDesc')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => user.role === 'tutor' || user.role === 'teacher' ? navigation.navigate('RewardsManager') : navigation.navigate('PeriodWheel')}
+                style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
+                  <Ionicons name="ribbon-outline" size={24} color={colors.secondary} />
+                </View>
+                <View style={styles.menuCardContent}>
+                  <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuRewards')}</Text>
+                  <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuRewardsDesc')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate('PeriodWheel')}
+                style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]} >
+                  <Ionicons name="aperture-outline" size={24} color="#8b5cf6" />
+                </View>
+                <View style={styles.menuCardContent}>
+                  <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuWheel')}</Text>
+                  <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuWheelDesc')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
       </View>
     </SafeAreaView>
   );

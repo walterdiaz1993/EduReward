@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../context/ThemeContext';
-import { PeriodsSubjectsScreenProps } from '../types/periods.types';
 import { usePeriodsSubjects } from '../hooks/usePeriodsSubjects';
 import { createStyles } from '../styles/PeriodsSubjectsScreen.styles';
 import CreatePeriodCard from '../components/CreatePeriodCard';
@@ -13,7 +12,7 @@ import PeriodCardItem from '../components/PeriodCardItem';
 import PeriodDetailModal from '../components/PeriodDetailModal';
 import SubjectRewardsModal from '../components/SubjectRewardsModal';
 
-export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ onBack }) => {
+export const PeriodsSubjectsScreen: React.FC = () => {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors);
@@ -51,11 +50,6 @@ export const PeriodsSubjectsScreen: React.FC<PeriodsSubjectsScreenProps> = ({ on
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <View style={styles.container}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={20} color={colors.primary} />
-          <Text style={styles.backButtonText}>{t('common.backBtn')}</Text>
-        </TouchableOpacity>
-
         <Text style={styles.title}>{t('periods.manageTitle')}</Text>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
