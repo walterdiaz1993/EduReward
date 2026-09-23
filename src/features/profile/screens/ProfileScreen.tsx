@@ -6,6 +6,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +28,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherP
   const { isDark, toggleTheme, colors } = useTheme();
 
   if (!user) return null;
+
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    try {
+      const { supabase } = require('../../../lib/supabase');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      Alert.alert('Éxito', 'Contraseña actualizada con éxito');
+      setIsPasswordModalOpen(false);
+      setNewPassword('');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo actualizar la contraseña');
+    }
+  };
 
   const isTeacher = user.role === 'teacher';
   const isTutor = user.role === 'tutor';
@@ -223,6 +245,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherP
           ]}
         >
           <TouchableOpacity
+            onPress={() => setIsPasswordModalOpen(true)}
+            style={[styles.actionButtonRow, { backgroundColor: colors.secondary + '12', borderColor: colors.secondary + '30', marginBottom: theme.spacing.sm }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="key-outline" size={20} color={colors.secondary} />
+            <Text style={[styles.actionButtonText, { color: colors.secondary }]}>Cambiar Contraseña</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={logout}
             style={[styles.actionButtonRow, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}
             activeOpacity={0.7}
@@ -240,6 +271,38 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onActivateTeacherP
             <Text style={[styles.actionButtonText, { color: colors.error }]}>{t('profile.deleteAccount')}</Text>
           </TouchableOpacity>
         </View>
+
+        <Modal visible={isPasswordModalOpen} animationType="fade" transparent={true} onRequestClose={() => setIsPasswordModalOpen(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ width: '100%', backgroundColor: colors.card, padding: 20, borderRadius: theme.roundness.lg, borderColor: colors.border, borderWidth: 1 }}>
+              <Text style={{ ...theme.typography.h2, color: colors.text, marginBottom: 15 }}>Cambiar Contraseña</Text>
+              
+              <Text style={{ ...theme.typography.caption, color: colors.textSecondary, marginBottom: 5 }}>Nueva Contraseña</Text>
+              <TextInput
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  padding: 12,
+                  borderRadius: theme.roundness.md,
+                  marginBottom: 20
+                }}
+                placeholder="Mínimo 6 caracteres"
+                placeholderTextColor={colors.textSecondary}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Button title="Cancelar" variant="secondary" onPress={() => setIsPasswordModalOpen(false)} containerStyle={{ flex: 1 }} />
+                <Button title="Guardar" onPress={handleChangePassword} containerStyle={{ flex: 1 }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+
       </ScrollView>
     </SafeAreaView>
   );

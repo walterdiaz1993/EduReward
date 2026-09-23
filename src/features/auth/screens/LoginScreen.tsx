@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,6 +7,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -18,23 +20,37 @@ import useLogin from '../hooks/useLogin';
 import { useTheme } from '../../../context/ThemeContext';
 
 export const LoginScreen: React.FC = () => {
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [recoverUser, setRecoverUser] = useState('');
+  const [recoverPass, setRecoverPass] = useState('');
+
   const {
+    email,
+    setEmail,
     username,
     setUsername,
     password,
     setPassword,
+    fullName,
+    setFullName,
+    role,
+    setRole,
+    isSignUpMode,
+    toggleMode,
     isLoading,
     validationError,
-    handleLogin,
+    handleSubmit,
     toggleLanguage,
     currentLanguage,
+    handleEmergencyPasswordReset,
+    setValidationError,
     t,
   } = useLogin();
 
   const { isDark, toggleTheme, colors } = useTheme();
 
   const onSubmit = async () => {
-    await handleLogin();
+    await handleSubmit();
   };
 
   return (
@@ -118,7 +134,9 @@ export const LoginScreen: React.FC = () => {
               },
             ]}
           >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{t('login.title')}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              {isSignUpMode ? t('login.titleSignUp') : t('login.title')}
+            </Text>
 
             {validationError && (
               <View style={[styles.errorBanner, { backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: colors.error }]}>
@@ -132,12 +150,69 @@ export const LoginScreen: React.FC = () => {
               </View>
             )}
 
+            {isSignUpMode && (
+              <>
+                <Input
+                  label={t('login.nameLabel')}
+                  placeholder={t('login.namePlaceholder')}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                />
+                
+                <Input
+                  label={t('login.usernameLabel')}
+                  placeholder={t('login.usernamePlaceholder')}
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                <View style={{ marginBottom: theme.spacing.md }}>
+                  <Text style={{ ...theme.typography.caption, color: colors.textSecondary, marginBottom: theme.spacing.xs, fontWeight: '600' }}>
+                    {t('login.roleLabel') || 'Selecciona tu Rol'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    {(['tutor', 'teacher'] as const).map((r) => {
+                      const isSelected = role === r;
+                      return (
+                        <TouchableOpacity
+                          key={r}
+                          onPress={() => setRole(r)}
+                          style={{
+                            flex: 1,
+                            marginHorizontal: 4,
+                            paddingVertical: 10,
+                            borderRadius: theme.roundness.md,
+                            borderWidth: 1,
+                            borderColor: isSelected ? colors.primary : colors.glassBorder,
+                            backgroundColor: isSelected ? colors.primary : 'transparent',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{ 
+                            ...theme.typography.caption,
+                            fontWeight: isSelected ? 'bold' : 'normal',
+                            color: isSelected ? '#fff' : colors.textSecondary 
+                          }}>
+                            {r.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
+            )}
+
             <Input
-              label={t('login.usernameLabel')}
-              placeholder={t('login.usernamePlaceholder')}
-              value={username}
-              onChangeText={setUsername}
+              label={isSignUpMode ? t('login.emailLabel') : t('login.usernameLabel') + ' o ' + t('login.emailLabel')}
+              placeholder={isSignUpMode ? t('login.emailPlaceholder') : 'tu@email.com o username'}
+              value={email}
+              onChangeText={setEmail}
               autoCapitalize="none"
+              keyboardType={isSignUpMode ? "email-address" : "default"}
               autoCorrect={false}
             />
 
@@ -152,14 +227,80 @@ export const LoginScreen: React.FC = () => {
             />
 
             <Button
-              title={t('login.button')}
+              title={isSignUpMode ? t('login.buttonSignUp') : t('login.button')}
               onPress={onSubmit}
               isLoading={isLoading}
               containerStyle={styles.submitButton}
             />
+
+            {!isSignUpMode && (
+              <TouchableOpacity style={{ marginTop: 15, alignItems: 'center' }} onPress={() => setIsResetModalOpen(true)}>
+                <Text style={{ color: colors.textSecondary, ...theme.typography.caption }}>
+                  ¿Olvidaste tu contraseña?
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={{ marginTop: 20, alignItems: 'center' }} onPress={toggleMode}>
+              <Text style={{ color: colors.primary, ...theme.typography.caption, fontWeight: 'bold' }}>
+                {isSignUpMode ? t('login.haveAccount') : t('login.noAccount')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={isResetModalOpen} animationType="fade" transparent={true} onRequestClose={() => setIsResetModalOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ width: '100%', backgroundColor: colors.card, padding: 24, borderRadius: theme.roundness.lg, borderColor: colors.border, borderWidth: 1 }}>
+            <Text style={{ ...theme.typography.h2, color: colors.text, marginBottom: 20 }}>Recuperar Contraseña</Text>
+            
+            <Input
+              label="Username o Correo"
+              placeholder="Ej. marcos123"
+              value={recoverUser}
+              onChangeText={setRecoverUser}
+              autoCapitalize="none"
+            />
+            
+            <Input
+              label="Nueva Contraseña"
+              placeholder="Mínimo 6 caracteres"
+              value={recoverPass}
+              onChangeText={setRecoverPass}
+              secureTextEntry
+            />
+
+            {validationError && (
+              <View style={[styles.errorBanner, { borderColor: colors.error, backgroundColor: colors.error + '10', marginBottom: 15 }]}>
+                <Ionicons name="warning" size={16} color={colors.error} style={styles.errorIcon} />
+                <Text style={[styles.errorBannerText, { color: colors.error }]}>{validationError}</Text>
+              </View>
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+              <Button 
+                title="Cancelar" 
+                variant="secondary" 
+                onPress={() => { setIsResetModalOpen(false); setValidationError(null); }} 
+                containerStyle={{ flex: 1 }} 
+              />
+              <Button 
+                title="Cambiar" 
+                isLoading={isLoading}
+                onPress={async () => {
+                  const success = await handleEmergencyPasswordReset(recoverUser, recoverPass);
+                  if (success) {
+                    Alert.alert('Éxito', 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.');
+                    setIsResetModalOpen(false);
+                  }
+                }} 
+                containerStyle={{ flex: 1 }} 
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

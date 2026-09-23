@@ -19,6 +19,7 @@ import { getPeriodTypeLabel, getGradingSystemLabel } from '../../periods/constan
 interface StudentConfigFormProps {
   student: StudentWithGrades;
   onSave: (id: string, updatedFields: Partial<StudentWithGrades>) => void;
+  onDelete?: (id: string) => void;
   onClose: () => void;
 }
 
@@ -31,6 +32,7 @@ interface PeriodWithSubjects {
 export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
   student,
   onSave,
+  onDelete,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -107,9 +109,16 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Text style={[styles.title, { color: colors.text }]}>{t('admin.editStudentTitle')}</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {onDelete && (
+            <TouchableOpacity onPress={() => onDelete(student.id)} style={styles.closeBtn}>
+              <Ionicons name="trash-outline" size={24} color={colors.error || '#ef4444'} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Student Name Edit */}

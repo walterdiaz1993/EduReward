@@ -4,21 +4,31 @@
     "error": "Error",
     "required": "Este campo es requerido",
     "logout": "Cerrar sesión",
-    "backBtn": "Volver al Menú"
+    "backBtn": "Volver al Menú",
+    "add": "Agregar",
+    "success": "Éxito"
   },
   "login": {
     "title": "¡Bienvenido de nuevo!",
+    "titleSignUp": "Crear nueva cuenta",
     "subtitle": "EduReward — Motivando el esfuerzo, premiando el logro",
     "usernameLabel": "Nombre de usuario",
     "usernamePlaceholder": "Ingresa tu usuario (ej. tutor, teacher, nico)",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu@email.com",
+    "nameLabel": "Nombre completo",
+    "namePlaceholder": "Ej. Juan Pérez",
     "passwordLabel": "Contraseña",
     "passwordPlaceholder": "Ingresa tu contraseña",
     "button": "Iniciar Sesión",
+    "buttonSignUp": "Registrarse",
     "buttonLoading": "Iniciando sesión...",
     "errorEmptyFields": "Por favor completa todos los campos",
-    "errorLength": "La contraseña debe tener al menos 4 caracteres",
+    "errorLength": "La contraseña debe tener al menos 6 caracteres",
     "errorInvalid": "Usuario o contraseña incorrectos",
-    "changeLanguage": "Change Language (English)"
+    "changeLanguage": "Change Language (English)",
+    "noAccount": "¿No tienes cuenta? Regístrate",
+    "haveAccount": "¿Ya tienes cuenta? Inicia Sesión"
   },
   "home": {
     "title": "Menú de Navegación",

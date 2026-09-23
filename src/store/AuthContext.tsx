@@ -1,13 +1,15 @@
-import React, { createContext, useContext, ReactNode } from 'react';
-import { MockUser, MOCK_USERS, delay } from '../mocks/userMock';
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import { MockUser } from '../mocks/userMock';
 import { useAppDispatch, useAppSelector } from './hooks';
 import { setUser, setLoading, updateProfile, logoutUser } from './slices/authSlice';
+import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: MockUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, fullName: string, username: string, role: string) => Promise<boolean>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: Partial<MockUser>) => void;
 }
@@ -18,44 +20,123 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  useEffect(() => {
+    // Check active session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchProfile(session.user.id);
+      } else {
+        dispatch(logoutUser());
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (data && !error) {
+      dispatch(setUser({
+        id: data.id,
+        username: data.username,
+        fullName: data.full_name,
+        email: data.email,
+        role: data.role as any,
+        points: data.points,
+        studentIds: data.student_ids || [],
+        isPremium: data.is_premium || false,
+      }));
+    } else {
+      // Si no existe el profile, cerramos sesion o lo manejamos
+      dispatch(logoutUser());
+    }
+  };
+
+  const login = async (emailOrUsername: string, password: string): Promise<boolean> => {
     dispatch(setLoading(true));
     try {
-      await delay(1000);
+      let targetEmail = emailOrUsername.trim().toLowerCase();
 
-      const cleanedUsername = username.trim().toLowerCase();
+      // Si no tiene '@', asumimos que es un username y buscamos su email en profiles
+      if (!targetEmail.includes('@')) {
+        // Intentar usar supabaseAdmin si existe para saltar RLS en desarrollo
+        let clientToUse = supabase;
+        try {
+          const { supabaseAdmin } = require('../lib/supabase');
+          if (supabaseAdmin) clientToUse = supabaseAdmin;
+        } catch (e) {}
 
-      if (MOCK_USERS[cleanedUsername]) {
-        const mockUser = MOCK_USERS[cleanedUsername];
-        dispatch(
-          setUser({
-            id: mockUser.id,
-            username: mockUser.username,
-            fullName: mockUser.fullName,
-            email: mockUser.email,
-            role: mockUser.role,
-            points: mockUser.points,
-            studentIds: mockUser.studentIds || [],
-            isPremium: mockUser.isPremium || false,
-          })
-        );
-        return true;
-      } else {
-        dispatch(
-          setUser({
-            id: `usr_${Date.now()}`,
-            username: username.trim(),
-            fullName: username.charAt(0).toUpperCase() + username.slice(1),
-            email: `${username.trim().toLowerCase()}@edureward.dev`,
-            role: 'tutor',
-            points: 0,
-            studentIds: [],
-            isPremium: false,
-          })
-        );
-        return true;
+        const { data, error } = await clientToUse
+          .from('profiles')
+          .select('email')
+          .eq('username', targetEmail)
+          .single();
+          
+        if (error || !data?.email) {
+          console.error("Username no encontrado en profiles al intentar iniciar sesión:", error);
+          return false;
+        }
+        targetEmail = data.email;
       }
-    } catch (error) {
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
+        password,
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error: any) {
+      console.error(error);
+      return false;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName: string, username: string, role: string): Promise<boolean> => {
+    dispatch(setLoading(true));
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Create profile
+        const { error: profileError } = await supabase.from('profiles').insert([
+          {
+            id: data.user.id,
+            email: email,
+            username: username,
+            full_name: fullName,
+            role: role,
+            points: 0,
+            is_premium: false
+          }
+        ]);
+        if (profileError) throw profileError;
+        
+        // Fetch manually to update Redux right away
+        await fetchProfile(data.user.id);
+      }
+      return true;
+    } catch (error: any) {
       console.error(error);
       return false;
     } finally {
@@ -65,7 +146,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async (): Promise<void> => {
     dispatch(setLoading(true));
-    await delay(500);
+    await supabase.auth.signOut();
     dispatch(logoutUser());
   };
 
@@ -74,7 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, signUp, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

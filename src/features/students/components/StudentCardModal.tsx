@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
 import { theme } from '../../../config/theme';
 import { StudentWithGrades } from '../../../mocks/userMock';
 import QRCodeView from '../../../components/QRCodeView';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 interface StudentCardModalProps {
   visible: boolean;
@@ -27,8 +30,31 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
   onScanThisStudent,
 }) => {
   const { colors } = useTheme();
+  const cardRef = useRef<View>(null);
 
   if (!visible || !student) return null;
+
+  const handleDownloadCard = async () => {
+    try {
+      const uri = await captureRef(cardRef, {
+        format: 'png',
+        quality: 1,
+      });
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          dialogTitle: 'Compartir o Guardar Carnet',
+          mimeType: 'image/png',
+        });
+      } else {
+        Alert.alert('Error', 'La función de compartir no está disponible en este dispositivo');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudo capturar el carnet');
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -40,14 +66,19 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
               <Ionicons name="card-outline" size={22} color={colors.primary} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>Carnet Estudiantil</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={handleDownloadCard} style={styles.closeBtn}>
+                <Ionicons name="download-outline" size={22} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* ID Card Graphic Container */}
-            <View style={[styles.idCardContainer, { backgroundColor: colors.background, borderColor: colors.primary }]}>
+            <View ref={cardRef} collapsable={false} style={[styles.idCardContainer, { backgroundColor: colors.background, borderColor: colors.primary }]}>
               {/* ID Card Banner Header */}
               <View style={[styles.cardHeaderBanner, { backgroundColor: colors.primary }]}>
                 <View style={styles.bannerRow}>
@@ -78,11 +109,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                           Estudiante
                         </Text>
                       </View>
-                      <View style={[styles.avgBadge, { backgroundColor: colors.primary + '20' }]}>
-                        <Text style={[styles.avgBadgeText, { color: colors.primary }]}>
-                          Promedio: {student.average}
-                        </Text>
-                      </View>
                     </View>
                   </View>
                 </View>
@@ -97,9 +123,6 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
                     <QRCodeView value={student.id} size={190} color="#000000" backgroundColor="#ffffff" />
                   </View>
 
-                  <Text style={[styles.studentIdTag, { color: colors.primary }]}>
-                    ID: {student.id.toUpperCase()}
-                  </Text>
                   <Text style={[styles.qrInstructions, { color: colors.textSecondary }]}>
                     Escanea este código QR con la cámara para abrir directamente el registro de calificaciones de {student.fullName}.
                   </Text>

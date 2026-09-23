@@ -4,21 +4,31 @@
     "error": "Error",
     "required": "This field is required",
     "logout": "Sign Out",
-    "backBtn": "Back to Menu"
+    "backBtn": "Back to Menu",
+    "add": "Add",
+    "success": "Success"
   },
   "login": {
     "title": "Welcome Back!",
+    "titleSignUp": "Create New Account",
     "subtitle": "EduReward — Motivating effort, rewarding achievement",
     "usernameLabel": "Username",
     "usernamePlaceholder": "Enter your username (e.g. tutor, teacher, nico)",
+    "emailLabel": "Email Address",
+    "emailPlaceholder": "you@email.com",
+    "nameLabel": "Full Name",
+    "namePlaceholder": "E.g. John Doe",
     "passwordLabel": "Password",
     "passwordPlaceholder": "Enter your password",
     "button": "Sign In",
+    "buttonSignUp": "Sign Up",
     "buttonLoading": "Signing in...",
     "errorEmptyFields": "Please fill in all fields",
-    "errorLength": "Password must be at least 4 characters long",
-    "errorInvalid": "Invalid username or password",
-    "changeLanguage": "Cambiar Idioma (Español)"
+    "errorLength": "Password must be at least 6 characters long",
+    "errorInvalid": "Invalid email or password",
+    "changeLanguage": "Cambiar Idioma (Español)",
+    "noAccount": "Don't have an account? Sign Up",
+    "haveAccount": "Already have an account? Sign In"
   },
   "home": {
     "title": "Navigation Hub",

@@ -277,6 +277,12 @@ export const useAdmin = () => {
 
     const usernameClean = newStudentUsername.trim().toLowerCase();
 
+    if (usernameClean.length < 6) {
+      setAlertMessage('El nombre de usuario debe tener al menos 6 caracteres (se usará como contraseña)');
+      setAlertType('error');
+      return;
+    }
+
     if (allStudents.some((s) => s.username === usernameClean)) {
       setAlertMessage(t('admin.gradeInvalid'));
       setAlertType('error');
@@ -284,11 +290,59 @@ export const useAdmin = () => {
     }
 
     try {
+      // 1. Crear el usuario en Supabase de forma silente (sin afectar la sesión del padre)
+      const { createClient } = require('@supabase/supabase-js');
+      const { supabaseUrl, supabaseAnonKey } = require('../../../lib/supabase');
+      const adminAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+      
+      const email = `${usernameClean}@edureward.dev`;
+      const { data: authData, error: authError } = await adminAuthClient.auth.signUp({
+        email: email,
+        password: usernameClean, // La contraseña es el mismo username
+      });
+
+      if (authError) {
+        if (authError.message === 'User already registered') {
+          setAlertMessage('Este nombre de usuario ya está en uso. Por favor, elige otro (ej. marcos123).');
+        } else {
+          setAlertMessage(authError.message);
+        }
+        setAlertType('error');
+        return;
+      }
+
+      // 2. Insertar en tabla profiles usando el cliente secundario (adminAuthClient) que tiene la sesión del niño
+      if (authData?.user) {
+        const { error: profileError } = await adminAuthClient.from('profiles').insert([
+          {
+            id: authData.user.id,
+            email: email,
+            username: usernameClean,
+            full_name: newStudentName.trim(),
+            role: 'student',
+            points: 0,
+            is_premium: false
+          }
+        ]);
+        
+        if (profileError) {
+          console.error('Error insertando en profiles:', profileError);
+          // Si falla, borramos el usuario creado en auth para mantener consistencia
+          // Nota: Solo se podría con service_role, pero al menos mostramos el error
+          setAlertMessage(`Error RLS al crear perfil: ${profileError.message}`);
+          setAlertType('error');
+          return;
+        }
+      }
+
+      // 3. Crear registro local en SQLite
       const createdRow = await dbService.createStudent({
         user_type: user?.role === 'tutor' ? 'child' : 'student',
         full_name: newStudentName.trim(),
         username: usernameClean,
-        email: `${usernameClean}@edureward.dev`,
+        email: email,
         parent_teacher_id: user?.id,
         points: 0,
         period_type: 'semester',
@@ -655,6 +709,51 @@ export const useAdmin = () => {
     handleDeleteGrade,
     handleCreateStudent,
     handleSaveStudentConfig,
+    handleDeleteStudent: async (studentId: string) => {
+      Alert.alert(
+        'Eliminar Estudiante',
+        '¿Estás seguro de que deseas eliminar este estudiante y todo su historial de calificaciones? Esta acción no se puede deshacer.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+                try {
+                  const { supabase } = require('../../../lib/supabase');
+                  await supabase.from('profiles').delete().eq('id', studentId);
+                } catch (err) {
+                  console.error('Non-critical Supabase delete error:', err);
+                }
+
+                try {
+                  await dbService.deleteStudent(studentId);
+                
+                // Remove from redux/state
+                const updatedAll = allStudents.filter(s => s.id !== studentId);
+                setAllStudents(updatedAll);
+                setMyStudents(updatedAll);
+                
+                if (user && user.studentIds) {
+                  const updatedIds = user.studentIds.filter(id => id !== studentId);
+                  updateUser({ studentIds: updatedIds });
+                }
+                
+                closeGradeModal();
+                setAlertMessage('Estudiante eliminado con éxito');
+                setAlertType('success');
+                setIsGradeModalOpen(true);
+              } catch (e: any) {
+                console.error('Error deleting student:', e);
+                setAlertMessage('Error al eliminar el estudiante');
+                setAlertType('error');
+                setIsGradeModalOpen(true);
+              }
+            }
+          }
+        ]
+      );
+    },
     handleAddRule,
     handleDeleteRule,
     handleActivatePremium,

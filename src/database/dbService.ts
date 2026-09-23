@@ -139,6 +139,19 @@ export const dbService = {
     return { id, ...student };
   },
 
+  async deleteStudent(studentId: string): Promise<void> {
+    const db = await getDatabase();
+    const safeId = studentId || '';
+    
+    // Delete all related records to maintain referential integrity
+    await db.runAsync('DELETE FROM grades_log WHERE student_id = ?;', [safeId]);
+    await db.runAsync('DELETE FROM rewards_log WHERE student_id = ?;', [safeId]);
+    await db.runAsync('DELETE FROM period_assignments WHERE student_id = ?;', [safeId]);
+    await db.runAsync('DELETE FROM student_periods WHERE student_id = ?;', [safeId]);
+    await db.runAsync('DELETE FROM student_period_spins WHERE student_id = ?;', [safeId]);
+    await db.runAsync('DELETE FROM students WHERE id = ?;', [safeId]);
+  },
+
   // Periods
   async getAllPeriods(createdBy?: string): Promise<PeriodRow[]> {
     const db = await getDatabase();
@@ -962,82 +975,9 @@ export const dbService = {
     if (!safePeriodId) return [];
 
     let wheels = await db.getAllAsync<PeriodWheelRow>(
-      'SELECT * FROM period_wheels WHERE period_id = ? ORDER BY min_grade ASC;',
+      'SELECT * FROM period_wheels WHERE period_id = ? ORDER BY id DESC;',
       [safePeriodId]
     );
-
-    // If no wheels exist for this period, initialize the 3 default wheels & options
-    if (wheels.length === 0) {
-      const defaultWheelConfigs: {
-        wheel_key: 'low' | 'medium' | 'high';
-        title: string;
-        min_grade: number;
-        max_grade: number;
-        color: string;
-        icon: string;
-        options: string[];
-      }[] = [
-        {
-          wheel_key: 'low',
-          title: 'Ruleta Consecuencias (Rango Bajo)',
-          min_grade: 0,
-          max_grade: 5.9,
-          color: '#ef4444',
-          icon: 'alert-circle',
-          options: ['Sin Consola 1 Sem', 'Repasar Materia', 'Limpiar Cuarto', 'Sin Salidas los Fines'],
-        },
-        {
-          wheel_key: 'medium',
-          title: 'Ruleta Intermedia (Rango Regular)',
-          min_grade: 6.0,
-          max_grade: 8.9,
-          color: '#f59e0b',
-          icon: 'ribbon-outline',
-          options: ['30 min Consola', 'Postre Especial', 'Jugar Videojuegos', 'Pase de Tarea'],
-        },
-        {
-          wheel_key: 'high',
-          title: 'Ruleta Dorada (Rango Excelente)',
-          min_grade: 9.0,
-          max_grade: 10.0,
-          color: '#10b981',
-          icon: 'trophy',
-          options: ['1 hora de Consola', 'Salida al Cine', 'Premio Especial', 'Juego Nuevo', 'Día Libre'],
-        },
-      ];
-
-      for (const config of defaultWheelConfigs) {
-        const wheelId = generateUniqueId('pw');
-        await db.runAsync(
-          `INSERT INTO period_wheels (id, period_id, wheel_key, title, min_grade, max_grade, color, icon)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-          [
-            wheelId,
-            safePeriodId,
-            config.wheel_key,
-            config.title,
-            config.min_grade,
-            config.max_grade,
-            config.color,
-            config.icon,
-          ]
-        );
-
-        for (const optText of config.options) {
-          const optId = generateUniqueId('pwo');
-          await db.runAsync(
-            `INSERT INTO period_wheel_options (id, wheel_id, option_text, created_at)
-             VALUES (?, ?, ?, ?);`,
-            [optId, wheelId, optText, new Date().toISOString()]
-          );
-        }
-      }
-
-      wheels = await db.getAllAsync<PeriodWheelRow>(
-        'SELECT * FROM period_wheels WHERE period_id = ? ORDER BY min_grade ASC;',
-        [safePeriodId]
-      );
-    }
 
     // Fetch options for each wheel
     const result: PeriodWheelWithOptions[] = [];
@@ -1055,18 +995,40 @@ export const dbService = {
     return result;
   },
 
+  async createPeriodWheel(periodId: string, title: string = 'Nueva Ruleta'): Promise<void> {
+    const db = await getDatabase();
+    const wheelId = generateUniqueId('pw');
+    await db.runAsync(
+      `INSERT INTO period_wheels (id, period_id, wheel_key, title, min_grade, max_grade, color, icon)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [wheelId, periodId || '', 'custom', title, 0, 10, '#3b82f6', 'aperture']
+    );
+  },
+
   async updatePeriodWheelRange(
     wheelId: string,
     minGrade: number,
     maxGrade: number,
-    title?: string
+    title?: string,
+    icon?: string,
+    color?: string
   ): Promise<void> {
     const db = await getDatabase();
     const safeWheelId = wheelId || '';
     const safeMin = isNaN(Number(minGrade)) ? 0 : Number(minGrade);
     const safeMax = isNaN(Number(maxGrade)) ? 10 : Number(maxGrade);
 
-    if (title !== undefined) {
+    if (title !== undefined && icon !== undefined && color !== undefined) {
+      await db.runAsync(
+        'UPDATE period_wheels SET min_grade = ?, max_grade = ?, title = ?, icon = ?, color = ? WHERE id = ?;',
+        [safeMin, safeMax, title, icon, color, safeWheelId]
+      );
+    } else if (title !== undefined && icon !== undefined) {
+      await db.runAsync(
+        'UPDATE period_wheels SET min_grade = ?, max_grade = ?, title = ?, icon = ? WHERE id = ?;',
+        [safeMin, safeMax, title, icon, safeWheelId]
+      );
+    } else if (title !== undefined) {
       await db.runAsync(
         'UPDATE period_wheels SET min_grade = ?, max_grade = ?, title = ? WHERE id = ?;',
         [safeMin, safeMax, title, safeWheelId]
@@ -1077,6 +1039,12 @@ export const dbService = {
         [safeMin, safeMax, safeWheelId]
       );
     }
+  },
+
+  async deletePeriodWheel(wheelId: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM period_wheel_options WHERE wheel_id = ?;', [wheelId || '']);
+    await db.runAsync('DELETE FROM period_wheels WHERE id = ?;', [wheelId || '']);
   },
 
   async addWheelOption(wheelId: string, optionText: string): Promise<PeriodWheelOptionRow> {

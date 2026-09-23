@@ -90,6 +90,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
     closePeriodModal,
     handleCreateStudent,
     handleSaveStudentConfig,
+    handleDeleteStudent,
     handleActivatePremium,
     validateAndAddGrade,
     checkCreationLimit,
@@ -367,6 +368,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
                   <StudentConfigForm
                     student={selectedStudent}
                     onSave={handleSaveStudentConfig}
+                    onDelete={handleDeleteStudent}
                     onClose={closeGradeModal}
                   />
                 ) : (
@@ -555,6 +557,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, adminSta
                   value={newStudentUsername}
                   onChangeText={setNewStudentUsername}
                 />
+                
+                <View style={{ backgroundColor: colors.primary + '10', padding: 12, borderRadius: theme.roundness.sm, marginTop: 8 }}>
+                  <Text style={{ ...theme.typography.caption, color: colors.primary, textAlign: 'center' }}>
+                    La contraseña por defecto para iniciar sesión será el mismo nombre de usuario.
+                  </Text>
+                </View>
+
+                {alertMessage && isCreateModalOpen && (
+                  <View style={[styles.alertBox, alertType === 'error' ? styles.alertError : styles.alertReward, { marginTop: 12 }]}>
+                    <Text style={styles.alertText}>{alertMessage}</Text>
+                  </View>
+                )}
 
                 <Button
                   title={t('admin.createBtn')}
