@@ -142,14 +142,6 @@ export const ProfileScreen: React.FC = () => {
               </View>
             </View>
           </View>
-
-          {/* Points Pill */}
-          <View style={[styles.pointsBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <Ionicons name="trophy-outline" size={20} color="#f59e0b" />
-            <Text style={[styles.pointsText, { color: colors.text }]}>
-              {user.points} <Text style={{ color: colors.textSecondary, fontWeight: '400' }}>{t('home.points')}</Text>
-            </Text>
-          </View>
         </View>
 
         {/* Premium Upgrade for Teachers */}
@@ -165,7 +157,7 @@ export const ProfileScreen: React.FC = () => {
           >
             <View style={styles.cardHeaderRow}>
               <Ionicons name="sparkles" size={22} color={user.isPremium ? '#eab308' : colors.primary} />
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Módulo Premium Docente</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>{t('profile.premiumModuleTitle', 'Módulo Premium Docente')}</Text>
             </View>
             <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
               {user.isPremium
@@ -194,7 +186,7 @@ export const ProfileScreen: React.FC = () => {
           ]}
         >
           <Text style={[styles.cardTitle, { color: colors.text, marginBottom: theme.spacing.md }]}>
-            Ajustes de Interfaz
+            {t('profile.interfaceSettings', 'Ajustes de Interfaz')}
           </Text>
 
           <TouchableOpacity
@@ -242,7 +234,7 @@ export const ProfileScreen: React.FC = () => {
             activeOpacity={0.7}
           >
             <Ionicons name="key-outline" size={20} color={colors.secondary} />
-            <Text style={[styles.actionButtonText, { color: colors.secondary }]}>Cambiar Contraseña</Text>
+            <Text style={[styles.actionButtonText, { color: colors.secondary }]}>{t('profile.changePassword', 'Cambiar Contraseña')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -267,9 +259,9 @@ export const ProfileScreen: React.FC = () => {
         <Modal visible={isPasswordModalOpen} animationType="fade" transparent={true} onRequestClose={() => setIsPasswordModalOpen(false)}>
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
             <View style={{ width: '100%', backgroundColor: colors.card, padding: 20, borderRadius: theme.roundness.lg, borderColor: colors.border, borderWidth: 1 }}>
-              <Text style={{ ...theme.typography.h2, color: colors.text, marginBottom: 15 }}>Cambiar Contraseña</Text>
+              <Text style={{ ...theme.typography.h2, color: colors.text, marginBottom: 15 }}>{t('profile.changePassword', 'Cambiar Contraseña')}</Text>
               
-              <Text style={{ ...theme.typography.caption, color: colors.textSecondary, marginBottom: 5 }}>Nueva Contraseña</Text>
+              <Text style={{ ...theme.typography.caption, color: colors.textSecondary, marginBottom: 5 }}>{t('profile.newPassword', 'Nueva Contraseña')}</Text>
               <TextInput
                 value={newPassword}
                 onChangeText={setNewPassword}
@@ -283,13 +275,13 @@ export const ProfileScreen: React.FC = () => {
                   borderRadius: theme.roundness.md,
                   marginBottom: 20
                 }}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t('profile.minPasswordLength', 'Mínimo 6 caracteres')}
                 placeholderTextColor={colors.textSecondary}
               />
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <Button title="Cancelar" variant="secondary" onPress={() => setIsPasswordModalOpen(false)} containerStyle={{ flex: 1 }} />
-                <Button title="Guardar" onPress={handleChangePassword} containerStyle={{ flex: 1 }} />
+                <Button title={t('common.cancel', 'Cancelar')} variant="secondary" onPress={() => setIsPasswordModalOpen(false)} containerStyle={{ flex: 1 }} />
+                <Button title={t('common.save', 'Guardar')} onPress={handleChangePassword} containerStyle={{ flex: 1 }} />
               </View>
             </View>
           </View>
@@ -367,19 +359,6 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     fontWeight: '700',
     fontSize: 10,
-  },
-  pointsBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.roundness.md,
-    borderWidth: 1,
-    gap: 6,
-  },
-  pointsText: {
-    ...theme.typography.bodySemibold,
-    fontSize: 16,
   },
   cardHeaderRow: {
     flexDirection: 'row',

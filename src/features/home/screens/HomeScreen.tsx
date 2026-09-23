@@ -109,8 +109,8 @@ export const HomeScreen: React.FC = () => {
                   style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
-                    <Ionicons name="calendar-outline" size={24} color={colors.secondary} />
+                  <View style={[styles.menuIconBox, { backgroundColor: isDark ? '#3b82f635' : '#3b82f615' }]}>
+                    <Ionicons name="calendar-outline" size={24} color="#3b82f6" />
                   </View>
                   <View style={styles.menuCardContent}>
                     <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuPeriods', 'Gestión de Períodos y Materias')}</Text>
@@ -125,8 +125,8 @@ export const HomeScreen: React.FC = () => {
                 style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
                 activeOpacity={0.7}
               >
-                <View style={[styles.menuIconBox, { backgroundColor: colors.primary + '20' }]}>
-                  <Ionicons name="people-outline" size={24} color={colors.primary} />
+                <View style={[styles.menuIconBox, { backgroundColor: isDark ? '#10b98135' : '#10b98115' }]}>
+                  <Ionicons name="people-outline" size={24} color="#10b981" />
                 </View>
                 <View style={styles.menuCardContent}>
                   <Text style={[styles.menuCardTitle, { color: colors.text }]}>
@@ -146,8 +146,8 @@ export const HomeScreen: React.FC = () => {
                 style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
                 activeOpacity={0.7}
               >
-                <View style={[styles.menuIconBox, { backgroundColor: colors.secondary + '20' }]}>
-                  <Ionicons name="ribbon-outline" size={24} color={colors.secondary} />
+                <View style={[styles.menuIconBox, { backgroundColor: isDark ? '#f59e0b35' : '#f59e0b15' }]}>
+                  <Ionicons name="ribbon-outline" size={24} color="#f59e0b" />
                 </View>
                 <View style={styles.menuCardContent}>
                   <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuRewards')}</Text>
@@ -161,7 +161,7 @@ export const HomeScreen: React.FC = () => {
                 style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
                 activeOpacity={0.7}
               >
-                <View style={[styles.menuIconBox, { backgroundColor: 'rgba(139, 92, 246, 0.2)' }]} >
+                <View style={[styles.menuIconBox, { backgroundColor: isDark ? '#8b5cf635' : '#8b5cf615' }]} >
                   <Ionicons name="aperture-outline" size={24} color="#8b5cf6" />
                 </View>
                 <View style={styles.menuCardContent}>
@@ -238,7 +238,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: theme.spacing.sm,
     borderWidth: 1,
-    elevation: 1,
   },
   logoutButton: {
     borderColor: 'rgba(239, 68, 68, 0.3)',
@@ -262,11 +261,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.roundness.lg,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    shadowColor: '#1e3a8a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
   },
   menuIconBox: {
     width: 48,

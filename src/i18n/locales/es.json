@@ -6,7 +6,9 @@
     "logout": "Cerrar sesión",
     "backBtn": "Volver al Menú",
     "add": "Agregar",
-    "success": "Éxito"
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar"
   },
   "login": {
     "title": "¡Bienvenido de nuevo!",
@@ -194,6 +196,11 @@
     "themeLight": "Modo Azul Claro",
     "themeDark": "Modo Azul Medianoche",
     "languageSection": "Idioma / Language",
+    "premiumModuleTitle": "Módulo Premium Docente",
+    "interfaceSettings": "Ajustes de Interfaz",
+    "changePassword": "Cambiar Contraseña",
+    "newPassword": "Nueva Contraseña",
+    "minPasswordLength": "Mínimo 6 caracteres",
     "deleteAccount": "Borrar Mi Cuenta",
     "deleteAccountConfirmTitle": "¿Eliminar cuenta?",
     "deleteAccountConfirmBody": "Esta acción no se puede deshacer. Se borrarán todos tus datos de usuario.",

@@ -12,6 +12,8 @@ import RewardsManager from '../features/rewards/screens/RewardsManager';
 import PeriodWheel from '../features/wheel/screens/PeriodWheel';
 import ProfileScreen from '../features/profile/screens/ProfileScreen';
 import { BottomTabBar, TabType } from '../components/BottomTabBar';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
 
 export type AuthStackParamList = {
   Login: undefined;
@@ -69,18 +71,28 @@ const MainTabs: React.FC = () => {
 
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
+  const { colors } = useTheme();
 
   return (
     <NavigationContainer>
       {isAuthenticated ? (
-        <AppStack.Navigator screenOptions={{ headerShown: true }}>
+        <AppStack.Navigator 
+          screenOptions={{ 
+            headerShown: true,
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerTitleStyle: { fontWeight: '600' },
+            headerShadowVisible: false,
+          }}
+        >
           <AppStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-          <AppStack.Screen name="PeriodsSubjects" component={PeriodsSubjectsScreen} options={{ title: 'Gestión de Períodos' }} />
-          <AppStack.Screen name="AdminDashboard" component={AdminDashboard} options={{ title: 'Configuración de Hijos' }} />
-          <AppStack.Screen name="StudentDashboard" component={StudentDashboard} options={{ title: 'Mi QR y Notas' }} />
-          <AppStack.Screen name="RewardsManager" component={RewardsManager} options={{ title: 'Gestión de Premios' }} />
-          <AppStack.Screen name="PeriodWheel" component={PeriodWheel} options={{ title: 'Ruleta de Premios' }} />
-          <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
+          <AppStack.Screen name="PeriodsSubjects" component={PeriodsSubjectsScreen} options={{ title: t('periods.manageTitle', 'Gestión de Períodos') }} />
+          <AppStack.Screen name="AdminDashboard" component={AdminDashboard} options={{ title: t('admin.title', 'Configuración de Hijos') }} />
+          <AppStack.Screen name="StudentDashboard" component={StudentDashboard} options={{ title: t('student.title', 'Mi QR y Notas') }} />
+          <AppStack.Screen name="RewardsManager" component={RewardsManager} options={{ title: t('rewards.managerTitle', 'Gestión de Premios') }} />
+          <AppStack.Screen name="PeriodWheel" component={PeriodWheel} options={{ title: t('home.menuWheel', 'Ruleta de Premios') }} />
+          <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: t('profile.title', 'Perfil') }} />
         </AppStack.Navigator>
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>

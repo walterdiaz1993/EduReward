@@ -6,7 +6,9 @@
     "logout": "Sign Out",
     "backBtn": "Back to Menu",
     "add": "Add",
-    "success": "Success"
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "login": {
     "title": "Welcome Back!",
@@ -194,6 +196,11 @@
     "themeLight": "Light Blue Mode",
     "themeDark": "Midnight Blue Mode",
     "languageSection": "Language / Idioma",
+    "premiumModuleTitle": "Premium Teacher Module",
+    "interfaceSettings": "Interface Settings",
+    "changePassword": "Change Password",
+    "newPassword": "New Password",
+    "minPasswordLength": "Minimum 6 characters",
     "deleteAccount": "Delete My Account",
     "deleteAccountConfirmTitle": "Delete account?",
     "deleteAccountConfirmBody": "This action cannot be undone. All your user data will be permanently removed.",
