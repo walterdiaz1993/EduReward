@@ -1133,6 +1133,17 @@ export const dbService = {
     return row || null;
   },
 
+  async getAllStudentSpins(studentId: string): Promise<StudentPeriodSpinRow[]> {
+    const db = await getDatabase();
+    const safeStudentId = studentId || '';
+    if (!safeStudentId) return [];
+    
+    return db.getAllAsync<StudentPeriodSpinRow>(
+      'SELECT * FROM student_period_spins WHERE student_id = ? ORDER BY created_at DESC;',
+      [safeStudentId]
+    );
+  },
+
   async resetStudentPeriodSpin(studentId: string, periodId: string): Promise<void> {
     const db = await getDatabase();
     const safeStudentId = studentId || '';

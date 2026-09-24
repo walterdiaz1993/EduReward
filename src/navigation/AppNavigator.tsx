@@ -8,6 +8,7 @@ import HomeScreen from '../features/home/screens/HomeScreen';
 import PeriodsSubjectsScreen from '../features/periods/screens/PeriodsSubjectsScreen';
 import AdminDashboard from '../features/students/screens/AdminDashboard';
 import StudentDashboard from '../features/students/screens/StudentDashboard';
+import StudentRewardsScreen from '../features/students/screens/StudentRewardsScreen';
 import RewardsManager from '../features/rewards/screens/RewardsManager';
 import PeriodWheel from '../features/wheel/screens/PeriodWheel';
 import ProfileScreen from '../features/profile/screens/ProfileScreen';
@@ -31,6 +32,7 @@ export type AppStackParamList = {
   PeriodsSubjects: undefined;
   AdminDashboard: undefined;
   StudentDashboard: undefined;
+  StudentRewards: undefined;
   RewardsManager: undefined; // In case we want to navigate directly
   PeriodWheel: undefined; // In case we want to navigate directly
   Profile: undefined; // In case we want to navigate directly
@@ -90,6 +92,7 @@ export const AppNavigator: React.FC = () => {
           <AppStack.Screen name="PeriodsSubjects" component={PeriodsSubjectsScreen} options={{ title: t('periods.manageTitle', 'Gestión de Períodos') }} />
           <AppStack.Screen name="AdminDashboard" component={AdminDashboard} options={{ title: t('admin.title', 'Configuración de Hijos') }} />
           <AppStack.Screen name="StudentDashboard" component={StudentDashboard} options={{ title: t('student.title', 'Mi QR y Notas') }} />
+          <AppStack.Screen name="StudentRewards" component={StudentRewardsScreen} options={{ title: t('home.menuRewardsStudent', 'Mis Premios') }} />
           <AppStack.Screen name="RewardsManager" component={RewardsManager} options={{ title: t('rewards.managerTitle', 'Gestión de Premios') }} />
           <AppStack.Screen name="PeriodWheel" component={PeriodWheel} options={{ title: t('home.menuWheel', 'Ruleta de Premios') }} />
           <AppStack.Screen name="Profile" component={ProfileScreen} options={{ title: t('profile.title', 'Perfil') }} />

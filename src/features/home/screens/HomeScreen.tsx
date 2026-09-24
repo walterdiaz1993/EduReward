@@ -142,7 +142,7 @@ export const HomeScreen: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => user.role === 'tutor' || user.role === 'teacher' ? navigation.navigate('RewardsManager') : navigation.navigate('PeriodWheel')}
+                onPress={() => user.role === 'tutor' || user.role === 'teacher' ? navigation.navigate('RewardsManager') : navigation.navigate('StudentRewards')}
                 style={[styles.menuCard, { backgroundColor: colors.cardTranslucent, borderColor: colors.glassBorder }]}
                 activeOpacity={0.7}
               >
@@ -150,8 +150,12 @@ export const HomeScreen: React.FC = () => {
                   <Ionicons name="ribbon-outline" size={24} color="#f59e0b" />
                 </View>
                 <View style={styles.menuCardContent}>
-                  <Text style={[styles.menuCardTitle, { color: colors.text }]}>{t('home.menuRewards')}</Text>
-                  <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>{t('home.menuRewardsDesc')}</Text>
+                  <Text style={[styles.menuCardTitle, { color: colors.text }]}>
+                    {user.role === 'tutor' || user.role === 'teacher' ? t('home.menuRewards') : t('home.menuRewardsStudent', 'Mis Premios')}
+                  </Text>
+                  <Text style={[styles.menuCardDesc, { color: colors.textSecondary }]}>
+                    {user.role === 'tutor' || user.role === 'teacher' ? t('home.menuRewardsDesc') : t('home.menuRewardsStudentDesc', 'Revisa tus premios y calificaciones por período.')}
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </TouchableOpacity>

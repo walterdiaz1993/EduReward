@@ -1,381 +1,199 @@
 import React from 'react';
 import {
-  FlatList,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import QRCodeView from '../../../components/QRCodeView';
 import { theme } from '../../../config/theme';
+import { useTheme } from '../../../context/ThemeContext';
 import useStudent from '../hooks/useStudent';
-import GradeDetailModal from '../components/GradeDetailModal';
 
 export const StudentDashboard: React.FC = () => {
-  const {
-    studentData,
-    gradesHistory,
-    subjectAveragesMap,
-    selectedGradeDetail,
-    gradeDetailReward,
-    isGradeDetailModalOpen,
-    openGradeDetail,
-    closeGradeDetail,
-    t,
-  } = useStudent();
-
-  const getAverageColor = (avg: number) => {
-    if (avg >= 90) return theme.colors.success;
-    if (avg < 70) return theme.colors.error;
-    return theme.colors.primary;
-  };
+  const { studentData, t } = useStudent();
+  const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <FlatList
-        data={[]}
-      renderItem={null}
-      ListEmptyComponent={
-        <View style={styles.container}>
-
-          {studentData && (
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Promedio Global</Text>
-                <Text
-                  style={[
-                    styles.summaryValue,
-                    { color: getAverageColor(studentData.average) },
-                  ]}
-                >
-                  {studentData.average}
-                </Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>{t('home.points')}</Text>
-                <Text style={[styles.summaryValue, { color: theme.colors.primary }]}>
-                  {studentData.points}
-                </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.xl, paddingBottom: 110 },
+        ]}
+      >
+        {studentData ? (
+          <View
+            style={[
+              styles.idCardContainer,
+              { backgroundColor: colors.background, borderColor: colors.primary },
+            ]}
+          >
+            {/* ID Card Banner Header */}
+            <View style={[styles.cardHeaderBanner, { backgroundColor: colors.primary }]}>
+              <View style={styles.bannerRow}>
+                <Ionicons name="school" size={22} color="#ffffff" />
+                <View>
+                  <Text style={styles.bannerTitle}>EduReward</Text>
+                  <Text style={styles.bannerSubtitle}>{t('student.cardSubtitle', 'Carnet de Identificación Estudiantil')}</Text>
+                </View>
               </View>
             </View>
-          )}
 
-          {/* Per-Subject Averages Card */}
-          {Object.keys(subjectAveragesMap).length > 0 && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Promedios por Materia</Text>
-              <View style={{ gap: 8, marginTop: theme.spacing.sm }}>
-                {Object.entries(subjectAveragesMap).map(([sbId, data]) => (
-                  <View key={sbId} style={styles.subjectAvgRow}>
-                    <Ionicons name="book-outline" size={18} color={theme.colors.secondary} />
-                    <Text style={styles.subjectAvgName}>{data.subjectName}</Text>
-                    <View style={styles.subjectAvgBadge}>
-                      <Text style={styles.subjectAvgValueText}>
-                        Prom: {data.average} ({data.count} notas)
+            {/* Student Profile Info */}
+            <View style={styles.cardBody}>
+              <View style={styles.profileRow}>
+                <View style={[styles.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name="person" size={36} color={colors.primary} />
+                </View>
+                <View style={styles.profileTextGroup}>
+                  <Text style={[styles.studentFullName, { color: colors.text }]}>
+                    {studentData.fullName}
+                  </Text>
+                  <Text style={[styles.studentUsername, { color: colors.textSecondary }]}>
+                    @{studentData.username}
+                  </Text>
+                  <View style={styles.badgePillRow}>
+                    <View style={[styles.roleBadge, { backgroundColor: colors.secondary + '20' }]}>
+                      <Text style={[styles.roleBadgeText, { color: colors.secondary }]}>
+                        {t('student.roleStudent', 'Estudiante')}
                       </Text>
                     </View>
                   </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>{t('student.qrTitle')}</Text>
-            <Text style={styles.sectionDesc}>{t('student.qrSubtitle')}</Text>
-            <View style={styles.qrContainer}>
-              <View style={styles.qrBorder}>
-                <Ionicons name="qr-code" size={140} color={theme.colors.text} />
-                <View style={styles.scannerCornerTL} />
-                <View style={styles.scannerCornerTR} />
-                <View style={styles.scannerCornerBL} />
-                <View style={styles.scannerCornerBR} />
-              </View>
-              {studentData && (
-                <Text style={styles.studentIdCode}>
-                  ID: {studentData.id.toUpperCase()}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {studentData && studentData.subjectRules && studentData.subjectRules.length > 0 && (
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>{t('student.activeRules')}</Text>
-              {studentData.subjectRules.map((rule) => (
-                <View key={rule.id} style={styles.ruleItem}>
-                  <Ionicons name="gift-outline" size={18} color={theme.colors.secondary} />
-                  <Text style={styles.ruleText}>
-                    {t('rewards.rulePlaceholder', {
-                      subject: rule.subject,
-                      condition: rule.condition === 'greater' ? '>' : '<',
-                      value: rule.value,
-                      reward: rule.rewardValue,
-                    })}
-                  </Text>
                 </View>
-              ))}
-            </View>
-          )}
-
-          {/* Complete Grade History */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Histórico de Calificaciones</Text>
-            {gradesHistory.length > 0 ? (
-              <View style={{ gap: 8, marginTop: theme.spacing.sm }}>
-                {gradesHistory.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => openGradeDetail(item)}
-                    style={styles.gradeHistoryCard}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.gradeHistorySubject}>{item.subject_name || 'Materia'}</Text>
-                      <Text style={styles.gradeHistoryDate}>
-                        {new Date(item.created_at).toLocaleDateString()} — Sistema: {item.grading_system}
-                      </Text>
-                    </View>
-                    <Text style={[styles.gradeHistoryValue, { color: getAverageColor(item.numeric_grade) }]}>
-                      {item.raw_grade}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} style={{ marginLeft: 6 }} />
-                  </TouchableOpacity>
-                ))}
               </View>
-            ) : (
-              <Text style={styles.noGradesText}>{t('student.noGrades')}</Text>
-            )}
-          </View>
 
-          {/* Grade Detail Modal */}
-          <GradeDetailModal
-            visible={isGradeDetailModalOpen}
-            gradeLog={selectedGradeDetail}
-            subjectName={(selectedGradeDetail as any)?.subject_name || 'Materia'}
-            reward={gradeDetailReward}
-            onClose={closeGradeDetail}
-            onEdit={() => {}}
-            onDelete={() => {}}
-          />
-        </View>
-      }
-    />
+              {/* QR Code Section */}
+              <View style={[styles.qrSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.qrTitleLabel, { color: colors.textSecondary }]}>
+                  {t('student.qrScanTitle', 'CÓDIGO QR PARA ESCANEAR NOTAS')}
+                </Text>
+
+                <View style={{ marginVertical: 8, alignItems: 'center' }}>
+                  <QRCodeView value={studentData.id} size={190} color="#000000" backgroundColor="#ffffff" />
+                </View>
+
+                <Text style={[styles.qrInstructions, { color: colors.textSecondary }]}>
+                  {t('student.qrScanDesc', 'Escanea este código QR con la cámara para abrir directamente el registro de calificaciones de {{name}}.', { name: studentData.fullName })}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Text style={{ color: colors.textSecondary }}>{t('common.loading', 'Cargando...')}</Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 110,
-    paddingTop: theme.spacing.md,
-  },
-  backButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    gap: theme.spacing.xs,
+    justifyContent: 'center',
   },
-  backButtonText: {
-    ...theme.typography.bodySemibold,
-    color: theme.colors.primary,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+  idCardContainer: {
+    width: '100%',
+    maxWidth: 400,
     borderRadius: theme.roundness.lg,
-    alignItems: 'center',
+    borderWidth: 1.5,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  summaryLabel: {
-    ...theme.typography.caption,
-    marginBottom: theme.spacing.xs,
-  },
-  summaryValue: {
-    ...theme.typography.h1,
-    fontSize: 28,
-  },
-  sectionCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness.lg,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  sectionTitle: {
-    ...theme.typography.h2,
-    fontSize: 18,
-    marginBottom: theme.spacing.xs,
-  },
-  sectionDesc: {
-    ...theme.typography.caption,
-    marginBottom: theme.spacing.lg,
-  },
-  qrContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-  },
-  qrBorder: {
-    padding: theme.spacing.lg,
-    backgroundColor: '#ffffff',
-    borderRadius: theme.roundness.lg,
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: theme.colors.primary + '30',
-  },
-  scannerCornerTL: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    width: 16,
-    height: 16,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: theme.colors.primary,
-    borderTopLeftRadius: theme.roundness.sm,
-  },
-  scannerCornerTR: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderColor: theme.colors.primary,
-    borderTopRightRadius: theme.roundness.sm,
-  },
-  scannerCornerBL: {
-    position: 'absolute',
-    bottom: -2,
-    left: -2,
-    width: 16,
-    height: 16,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderColor: theme.colors.primary,
-    borderBottomLeftRadius: theme.roundness.sm,
-  },
-  scannerCornerBR: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderColor: theme.colors.primary,
-    borderBottomRightRadius: theme.roundness.sm,
-  },
-  studentIdCode: {
-    ...theme.typography.caption,
-    fontWeight: '700',
-    marginTop: theme.spacing.md,
-    letterSpacing: 2,
-    color: theme.colors.textSecondary,
-  },
-  ruleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    gap: theme.spacing.sm,
-  },
-  ruleText: {
-    ...theme.typography.caption,
-    flex: 1,
-  },
-  gradesList: {
-    gap: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  gradeCard: {
-    backgroundColor: theme.colors.background,
+  cardHeaderBanner: {
     padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    minWidth: 90,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    paddingVertical: theme.spacing.lg,
   },
-  gradeIndex: {
-    ...theme.typography.caption,
-    fontSize: 11,
-    marginBottom: 4,
-  },
-  gradeValueText: {
-    ...theme.typography.h2,
-    fontSize: 20,
-  },
-  subjectAvgRow: {
+  bannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
     gap: 8,
   },
-  subjectAvgName: {
-    ...theme.typography.bodySemibold,
-    fontSize: 14,
-    flex: 1,
+  bannerTitle: {
+    ...theme.typography.h2,
+    color: '#ffffff',
+    fontSize: 16,
+    lineHeight: 20,
   },
-  subjectAvgBadge: {
-    backgroundColor: theme.colors.primary + '15',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
+  bannerSubtitle: {
+    ...theme.typography.caption,
+    color: '#ffffff',
+    opacity: 0.85,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  cardBody: {
+    padding: theme.spacing.lg,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
+  avatarCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileTextGroup: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  studentFullName: {
+    ...theme.typography.h2,
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  studentUsername: {
+    ...theme.typography.body,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  badgePillRow: {
+    flexDirection: 'row',
+  },
+  roleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: theme.roundness.full,
   },
-  subjectAvgValueText: {
+  roleBadgeText: {
     ...theme.typography.caption,
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.primary,
+    textTransform: 'uppercase',
   },
-  gradeHistoryCard: {
-    flexDirection: 'row',
+  qrSection: {
     alignItems: 'center',
     padding: theme.spacing.md,
     borderRadius: theme.roundness.md,
-    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
-  gradeHistorySubject: {
-    ...theme.typography.bodySemibold,
-    fontSize: 14,
+  qrTitleLabel: {
+    ...theme.typography.caption,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  gradeHistoryDate: {
+  qrInstructions: {
     ...theme.typography.caption,
     fontSize: 11,
-    marginTop: 2,
-  },
-  gradeHistoryValue: {
-    ...theme.typography.h2,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  noGradesText: {
-    ...theme.typography.caption,
-    fontStyle: 'italic',
     textAlign: 'center',
-    paddingVertical: theme.spacing.md,
+    marginTop: 8,
+    paddingHorizontal: 8,
+    lineHeight: 16,
   },
 });
 
