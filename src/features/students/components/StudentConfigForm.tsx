@@ -15,6 +15,7 @@ import Button from '../../../components/Button';
 import { useTranslation } from 'react-i18next';
 import dbService, { PeriodRow, SubjectRow } from '../../../database/dbService';
 import { getPeriodTypeLabel, getGradingSystemLabel } from '../../periods/constants/periods.constants';
+import { useAuth } from '../../../store/AuthContext';
 
 interface StudentConfigFormProps {
   student: StudentWithGrades;
@@ -37,6 +38,7 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   const [name, setName] = useState(student.fullName);
   const [periodDataList, setPeriodDataList] = useState<PeriodWithSubjects[]>([]);
@@ -44,12 +46,12 @@ export const StudentConfigForm: React.FC<StudentConfigFormProps> = ({
 
   useEffect(() => {
     loadAllPeriodsAndAssignments();
-  }, [student.id]);
+  }, [student.id, user]);
 
   const loadAllPeriodsAndAssignments = async () => {
     setIsLoading(true);
     try {
-      const allP = await dbService.getAllPeriods();
+      const allP = await dbService.getAllPeriods(user?.id);
       const list: PeriodWithSubjects[] = [];
 
       for (const p of allP) {

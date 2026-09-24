@@ -20,10 +20,12 @@ import dbService, {
 } from '../../../database/dbService';
 import { EditableRuleSlot } from '../types/periods.types';
 import { getDefaultRuleSlots } from '../constants/periods.constants';
+import { useAuth } from '../../../store/AuthContext';
 
 export const usePeriodsSubjects = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
 
   // Redux Selectors (State from Store)
   const periods = useAppSelector((state) => state.academic.periods);
@@ -51,12 +53,14 @@ export const usePeriodsSubjects = () => {
   );
 
   useEffect(() => {
-    loadAllData();
-  }, []);
+    if (user) {
+      loadAllData();
+    }
+  }, [user]);
 
   const loadAllData = async () => {
     try {
-      const pList = await dbService.getAllPeriods();
+      const pList = await dbService.getAllPeriods(user?.id);
       // Dispatch to Redux Store via useAppDispatch
       dispatch(setPeriods(pList));
     } catch (e) {
@@ -70,7 +74,7 @@ export const usePeriodsSubjects = () => {
       return;
     }
     try {
-      const created = await dbService.createPeriod(newPeriodName.trim(), newPeriodType, 'user');
+      const created = await dbService.createPeriod(newPeriodName.trim(), newPeriodType, user?.id || 'unknown');
       // Dispatch action to update Redux store
       dispatch(addPeriod(created));
       setNewPeriodName('');
@@ -139,7 +143,7 @@ export const usePeriodsSubjects = () => {
     try {
       const created = await dbService.createSubject(
         newSubjectName.trim(),
-        'user',
+        user?.id || 'unknown',
         selectedPeriod.id,
         newGradingSystem
       );

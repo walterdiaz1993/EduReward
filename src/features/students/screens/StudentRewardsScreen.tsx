@@ -49,7 +49,7 @@ export default function StudentRewardsScreen() {
           const studentId = match.id;
           
           // 1. Fetch periods & wheels
-          const allPeriods = await dbService.getAllPeriods();
+          const allPeriods = await dbService.getAllPeriods(match.parent_teacher_id);
           const periodMap = allPeriods.reduce((acc, p) => { acc[p.id] = p; return acc; }, {} as Record<string, PeriodRow>);
           
           const wheelsData = await dbService.getPeriodWheels();

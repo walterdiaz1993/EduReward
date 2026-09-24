@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import dbService, { PeriodRow, PeriodWheelWithOptions } from '../../../database/dbService';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../../store/AuthContext';
 
 export const useRewardsManager = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   
   const [periods, setPeriods] = useState<PeriodRow[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
@@ -20,8 +22,10 @@ export const useRewardsManager = () => {
   const [savingWheelId, setSavingWheelId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadPeriods();
-  }, []);
+    if (user) {
+      loadPeriods();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (selectedPeriodId) {
@@ -32,10 +36,10 @@ export const useRewardsManager = () => {
   const loadPeriods = async () => {
     setLoading(true);
     try {
-      let fetchedPeriods = await dbService.getAllPeriods();
+      let fetchedPeriods = await dbService.getAllPeriods(user?.id);
       if (fetchedPeriods.length === 0) {
         // Auto-create a default period if none exists
-        const defaultP = await dbService.createPeriod('Primer Semestre', 'semester', 'admin');
+        const defaultP = await dbService.createPeriod('Primer Semestre', 'semester', user?.id || 'admin');
         fetchedPeriods = [defaultP];
       }
       setPeriods(fetchedPeriods);

@@ -9,6 +9,7 @@ import {
   View,
   Modal,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -108,18 +109,12 @@ export const LoginScreen: React.FC = () => {
           </View>
 
           <View style={styles.logoSection}>
-            <View
-              style={[
-                styles.logoCircle,
-                {
-                  backgroundColor: colors.primary + '20',
-                  borderColor: colors.primary + '40',
-                },
-              ]}
-            >
-              <Ionicons name="school" size={40} color={colors.primary} />
+            <View style={styles.logoCircle}>
+              <Image 
+                source={require('../../../../assets/logoedurewardfondo.png')} 
+                style={{ width: '100%', height: '100%', resizeMode: 'contain' }} 
+              />
             </View>
-            <Text style={[styles.appName, { color: colors.primary }]}>EduReward</Text>
             <Text style={[styles.appSubtitle, { color: colors.textSecondary }]}>
               {t('login.subtitle')}
             </Text>
@@ -351,18 +346,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   logoCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 2,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
-  },
-  appName: {
-    ...theme.typography.h1,
-    fontSize: 32,
-    marginBottom: theme.spacing.xs,
   },
   appSubtitle: {
     ...theme.typography.caption,

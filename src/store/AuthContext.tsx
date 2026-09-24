@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, username: string, role: string) => Promise<boolean>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: Partial<MockUser>) => void;
+  deleteAccount: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -154,8 +155,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch(updateProfile(updatedUser));
   };
 
+  const deleteAccount = async (): Promise<boolean> => {
+    dispatch(setLoading(true));
+    try {
+      if (!user) throw new Error('No user to delete');
+
+      let clientToUse = null;
+      try {
+        const { supabaseAdmin } = require('../lib/supabase');
+        if (supabaseAdmin) clientToUse = supabaseAdmin;
+      } catch (e) {}
+
+      if (clientToUse) {
+        // Usa Service Role para borrar el auth.user, lo que debería borrar en cascada el profile.
+        const { error: authError } = await clientToUse.auth.admin.deleteUser(user.id);
+        if (authError) throw authError;
+      } else {
+        // Fallback si no hay supabaseAdmin: borramos el profile y esperamos que un trigger borre el user (o al menos queda huérfano)
+        const { error } = await supabase.from('profiles').delete().eq('id', user.id);
+        if (error) throw error;
+      }
+
+      await supabase.auth.signOut();
+      dispatch(logoutUser());
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      return false;
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, signUp, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, signUp, logout, updateUser, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

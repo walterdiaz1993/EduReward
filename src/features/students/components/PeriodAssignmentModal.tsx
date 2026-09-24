@@ -16,6 +16,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import Button from '../../../components/Button';
 import Input from '../../../components/Input';
 import dbService, { StudentRow, PeriodRow, SubjectRow, PeriodType } from '../../../database/dbService';
+import { useAuth } from '../../../store/AuthContext';
 
 interface PeriodAssignmentModalProps {
   visible: boolean;
@@ -30,6 +31,7 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [periods, setPeriods] = useState<PeriodRow[]>([]);
@@ -51,8 +53,8 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
 
   const loadData = async () => {
     try {
-      const stList = await dbService.getAllStudents();
-      const pList = await dbService.getAllPeriods();
+      const stList = await dbService.getAllStudents(user?.id);
+      const pList = await dbService.getAllPeriods(user?.id);
       setStudents(stList);
       setPeriods(pList);
 
@@ -100,12 +102,12 @@ export const PeriodAssignmentModal: React.FC<PeriodAssignmentModalProps> = ({
 
     try {
       // 1. Create Period
-      const period = await dbService.createPeriod(periodName.trim(), periodType, 'user');
+      const period = await dbService.createPeriod(periodName.trim(), periodType, user?.id || 'unknown');
 
       // 2. Create Subjects for this Period
       const createdSubjects: SubjectRow[] = [];
       for (const sbName of subjectInputs) {
-        const sb = await dbService.createSubject(sbName, 'user', period.id, 'percentage');
+        const sb = await dbService.createSubject(sbName, user?.id || 'unknown', period.id, 'percentage');
         createdSubjects.push(sb);
       }
 

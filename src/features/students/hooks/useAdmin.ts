@@ -98,7 +98,7 @@ export const useAdmin = () => {
   const loadStudentsFromDb = async () => {
     try {
       await dbService.recalculateAllStudentAverages();
-      const dbSts = await dbService.getAllStudents();
+      const dbSts = await dbService.getAllStudents(user?.id);
       dispatch(setReduxStudents(dbSts));
 
       // Map SQLite rows to StudentWithGrades format

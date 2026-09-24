@@ -19,7 +19,7 @@ import Button from '../../../components/Button';
 
 export const ProfileScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, deleteAccount } = useAuth();
   const { isDark, toggleTheme, colors } = useTheme();
 
   if (!user) return null;
@@ -67,8 +67,12 @@ export const ProfileScreen: React.FC = () => {
           text: t('profile.deleteAccountConfirmBtn'),
           style: 'destructive',
           onPress: async () => {
-            await logout();
-            Alert.alert(t('common.error'), t('profile.accountDeleted'));
+            const success = await deleteAccount();
+            if (success) {
+              Alert.alert('Cuenta Eliminada', 'Tu cuenta ha sido eliminada permanentemente de Supabase y de tu dispositivo.');
+            } else {
+              Alert.alert('Error', 'No se pudo eliminar la cuenta de Supabase. Revisa tu conexión.');
+            }
           },
         },
       ],
