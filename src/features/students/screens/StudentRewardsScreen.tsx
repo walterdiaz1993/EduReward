@@ -52,8 +52,12 @@ export default function StudentRewardsScreen() {
           const allPeriods = await dbService.getAllPeriods(match.parent_teacher_id);
           const periodMap = allPeriods.reduce((acc, p) => { acc[p.id] = p; return acc; }, {} as Record<string, PeriodRow>);
           
-          const wheelsData = await dbService.getPeriodWheels();
-          const wheelsMap = wheelsData.reduce((acc, w) => { acc[w.id] = w; return acc; }, {} as Record<string, PeriodWheelRow>);
+          let wheelsData: any[] = [];
+          for (const p of allPeriods) {
+            const wList = await dbService.getPeriodWheels(p.id);
+            wheelsData = [...wheelsData, ...wList];
+          }
+          const wheelsMap = wheelsData.reduce((acc, w) => { acc[w.id] = w; return acc; }, {} as Record<string, any>);
           
           // 2. Fetch all spins
           const allSpins = await dbService.getAllStudentSpins(studentId);

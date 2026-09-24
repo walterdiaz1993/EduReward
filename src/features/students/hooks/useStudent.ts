@@ -69,24 +69,24 @@ export const useStudent = () => {
   const loadInitialData = async () => {
     if (!user) return;
     try {
-      let pList = await dbService.getAllPeriods();
+      const parentId = await loadStudentFromDb();
+      
+      let pList = await dbService.getAllPeriods(parentId || undefined);
       if (pList.length === 0) {
-        const defP = await dbService.createPeriod('Primer Semestre', 'semester', 'admin');
+        const defP = await dbService.createPeriod('Primer Semestre', 'semester', parentId || 'admin');
         pList = [defP];
       }
       setPeriods(pList);
       if (pList.length > 0) {
         setSelectedPeriodId(pList[0].id);
       }
-
-      await loadStudentFromDb();
     } catch (e) {
       console.error('Error loading initial student data:', e);
     }
   };
 
-  const loadStudentFromDb = async () => {
-    if (!user) return;
+  const loadStudentFromDb = async (): Promise<string | undefined> => {
+    if (!user) return undefined;
     try {
       const allSts = await dbService.getAllStudents();
       const match = allSts.find((s: StudentRow) => s.id === user.id || s.username === user.username);
@@ -110,6 +110,7 @@ export const useStudent = () => {
           gradingSystem: match.grading_system,
           subjectRules: [],
         });
+        return match.parent_teacher_id;
       } else {
         const initialMatch = INITIAL_STUDENTS.find((s) => s.username === user.username);
         if (initialMatch) {
@@ -129,9 +130,11 @@ export const useStudent = () => {
             subjectRules: [],
           });
         }
+        return user.id || undefined;
       }
     } catch (e) {
       console.error('Error loading student data from DB:', e);
+      return undefined;
     }
   };
 
